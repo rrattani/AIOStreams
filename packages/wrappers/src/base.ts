@@ -12,7 +12,7 @@ import {
   serviceDetails,
   Settings,
 } from '@aiostreams/utils';
-import { fetch as uFetch, ProxyAgent } from 'undici';
+// import { fetch as uFetch, ProxyAgent } from 'undici';
 
 export class BaseWrapper {
   private readonly streamPath: string = 'stream/{type}/{id}.json';
@@ -114,6 +114,7 @@ export class BaseWrapper {
           );
         }
       } catch (error: any) {
+        /*
         if (!Settings.ADDON_PROXY) {
           throw error;
         }
@@ -127,6 +128,8 @@ export class BaseWrapper {
           headers: headers,
           signal: controller.signal,
         });
+        */
+        throw error;
       }
 
       clearTimeout(timeout);
