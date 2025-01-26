@@ -20,12 +20,6 @@ function createResponse(message: string, status: number): Response {
   });
 }
 
-function setProcessEnvironment(env: any) {  
-  for (let key in env) {
-    process.env[key] = env[key]
-  }
-}
-
 export default {
   async fetch(request, env, ctx): Promise<Response> {
     try {
@@ -119,9 +113,6 @@ export default {
         if (type !== 'movie' && type !== 'series') {
           return createResponse('Invalid Request', 400);
         }
-
-        // set the process environment
-        setProcessEnvironment(env);
 
         let streamRequest: StreamRequest = { id, type };
 
