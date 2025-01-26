@@ -12,7 +12,7 @@ import {
   serviceDetails,
   Settings,
 } from '@aiostreams/utils';
-import { fetch as uFetch, ProxyAgent } from 'undici';
+// import { fetch as uFetch, ProxyAgent } from 'undici';
 
 export class BaseWrapper {
   private readonly streamPath: string = 'stream/{type}/{id}.json';
