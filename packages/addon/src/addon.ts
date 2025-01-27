@@ -12,7 +12,13 @@ import {
   getTorboxStreams,
   getTorrentioStreams,
 } from '@aiostreams/wrappers';
-import { Stream, ParsedStream, StreamRequest, Config } from '@aiostreams/types';
+import {
+  Stream,
+  ParsedStream,
+  StreamRequest,
+  Config,
+  ErrorStream,
+} from '@aiostreams/types';
 import {
   gdriveFormat,
   torrentioFormat,
@@ -20,10 +26,14 @@ import {
   imposterFormat,
 } from '@aiostreams/formatters';
 import {
+  addonDetails,
   createProxiedMediaFlowUrl,
   getMediaFlowConfig,
+  getMediaFlowPublicIp,
+  getTimeTakenSincePoint,
   Settings,
 } from '@aiostreams/utils';
+import { errorStream } from './responses';
 
 export class AIOStreams {
   private config: Config;
@@ -32,27 +42,54 @@ export class AIOStreams {
     this.config = config;
   }
 
+  private async getRequestingIp() {
+    let userIp = this.config.requestingIp;
+    const mediaFlowConfig = getMediaFlowConfig(this.config);
+    if (mediaFlowConfig.mediaFlowEnabled) {
+      const mediaFlowIp = await getMediaFlowPublicIp(
+        mediaFlowConfig,
+        this.config.instanceCache
+      );
+      if (mediaFlowIp) {
+        userIp = mediaFlowIp;
+      }
+    }
+    return userIp;
+  }
+
   public async getStreams(streamRequest: StreamRequest): Promise<Stream[]> {
     const streams: Stream[] = [];
     const startTime = new Date().getTime();
-    const getTimeTakenSincePoint = (point: number) => {
-      const timeNow = new Date().getTime();
-      const duration = timeNow - point;
-      // format duration and choose unit and return
-      const nanos = duration * 1_000_000; // Convert to nanoseconds
-      const micros = duration * 1_000; // Convert to microseconds
 
-      if (nanos < 1) {
-        return `${nanos.toFixed(2)}ns`;
-      } else if (micros < 1) {
-        return `${micros.toFixed(2)}µs`;
-      } else if (duration < 1000) {
-        return `${duration.toFixed(2)}ms`;
-      } else {
-        return `${(duration / 1000).toFixed(2)}s`;
+    let ipRequestCount = 0;
+    while (ipRequestCount < 3) {
+      try {
+        const ip = await this.getRequestingIp();
+        if (!ip && getMediaFlowConfig(this.config).mediaFlowEnabled) {
+          throw new Error('No IP was found with MediaFlow enabled');
+        }
+        this.config.requestingIp = ip;
+        break;
+      } catch (error) {
+        console.error(
+          `|ERR| addon > getStreams: Failed to get requesting IP: ${error}, retrying ${ipRequestCount + 1}/3`
+        );
+        ipRequestCount++;
       }
-    };
-    const parsedStreams = await this.getParsedStreams(streamRequest);
+    }
+    if (ipRequestCount === 3) {
+      console.error(
+        '|ERR| addon > getStreams: Failed to get requesting IP after 3 attempts'
+      );
+      if (this.config.mediaFlowConfig?.mediaFlowEnabled) {
+        return [
+          errorStream('Aborted request after failing to get requesting IP'),
+        ];
+      }
+    }
+    const { errorStreams, parsedStreams } =
+      await this.getParsedStreams(streamRequest);
+
     console.log(
       `|INF| addon > getStreams: Got ${parsedStreams.length} total parsed streams in ${getTimeTakenSincePoint(startTime)}`
     );
@@ -85,6 +122,11 @@ export class AIOStreams {
       : null;
 
     let filteredResults = parsedStreams.filter((parsedStream) => {
+      const streamTypeFilter = this.config.streamTypes?.find(
+        (streamType) => streamType[parsedStream.type]
+      );
+      if (this.config.streamTypes && !streamTypeFilter) return false;
+
       const resolutionFilter = this.config.resolutions.find(
         (resolution) => resolution[parsedStream.resolution]
       );
@@ -386,6 +428,11 @@ export class AIOStreams {
     );
     streams.push(...streamObjects.filter((s) => s !== null));
 
+    // Add error streams to the end
+    streams.push(
+      ...errorStreams.map((e) => errorStream(e.error, e.addon.name))
+    );
+
     console.log(
       `|INF| addon > getStreams: Created ${streams.length} stream objects in ${getTimeTakenSincePoint(streamsStartTime)}`
     );
@@ -415,11 +462,6 @@ export class AIOStreams {
     );
     if (!proxiedUrl) {
       throw new Error('Could not create MediaFlow proxied URL');
-    }
-    if (Settings.LOG_SENSITIVE_INFO) {
-      console.log(
-        `|INF| addon > createMediaFlowStream: Proxied URL for ${name}: ${proxiedUrl}`
-      );
     }
     const combinedTags = [
       parsedStream.resolution,
@@ -451,13 +493,6 @@ export class AIOStreams {
 
   private shouldProxyStream(stream: ParsedStream): boolean {
     const mediaFlowConfig = getMediaFlowConfig(this.config);
-    if (Settings.LOG_SENSITIVE_INFO) {
-      console.debug(
-        `|DBG| addon > shouldProxyStream: MediaFlow config: ${JSON.stringify(
-          mediaFlowConfig
-        )}`
-      );
-    }
     if (!mediaFlowConfig.mediaFlowEnabled) return false;
     if (!stream.url) return false;
     // now check if mediaFlowConfig.proxiedAddons or mediaFlowConfig.proxiedServices is not null
@@ -467,11 +502,6 @@ export class AIOStreams {
       mediaFlowConfig.proxiedAddons.length > 0 &&
       !mediaFlowConfig.proxiedAddons.includes(stream.addon.id)
     ) {
-      if (Settings.LOG_SENSITIVE_INFO) {
-        console.debug(
-          `|DBG| addon > shouldProxyStream: Stream from addon ${stream.addon.id} is not proxied so skipping`
-        );
-      }
       return false;
     }
 
@@ -485,18 +515,7 @@ export class AIOStreams {
         !stream.provider &&
         !mediaFlowConfig.proxiedServices.includes('none'))
     ) {
-      if (Settings.LOG_SENSITIVE_INFO) {
-        console.debug(
-          `|DBG| addon > shouldProxyStream: Stream from provider ${stream.provider?.id} is not proxied so skipping`
-        );
-      }
       return false;
-    }
-
-    if (Settings.LOG_SENSITIVE_INFO) {
-      console.debug(
-        `|DBG| addon > shouldProxyStream: Stream from addon ${stream.addon.id} and provider ${stream.provider?.id} with URL ${stream.url} is eligible for proxying, attempting to create MediaFlow stream`
-      );
     }
 
     return true;
@@ -561,11 +580,6 @@ export class AIOStreams {
 
     let stream: Stream;
     const shouldProxy = this.shouldProxyStream(parsedStream);
-    if (Settings.LOG_SENSITIVE_INFO) {
-      console.debug(
-        `|DBG| addon > createStreamObject: Determined that stream ${name} should${shouldProxy ? '' : ' not'} be proxied`
-      );
-    }
     if (shouldProxy) {
       try {
         const mediaFlowStream = this.createMediaFlowStream(
@@ -705,6 +719,15 @@ export class AIOStreams {
       ) {
         return 1;
       }
+    } else if (field === 'streamType') {
+      return (
+        (this.config.streamTypes?.findIndex(
+          (streamType) => streamType[a.type]
+        ) ?? -1) -
+        (this.config.streamTypes?.findIndex(
+          (streamType) => streamType[b.type]
+        ) ?? -1)
+      );
     } else if (field === 'quality') {
       return (
         this.config.qualities.findIndex((quality) => quality[a.quality]) -
@@ -837,13 +860,18 @@ export class AIOStreams {
 
   private async getParsedStreams(
     streamRequest: StreamRequest
-  ): Promise<ParsedStream[]> {
+  ): Promise<{ errorStreams: ErrorStream[]; parsedStreams: ParsedStream[] }> {
     const parsedStreams: ParsedStream[] = [];
+    const errorStreams: ErrorStream[] = [];
     const addonPromises = this.config.addons.map(async (addon) => {
       const addonName =
-        addon.options.name || addon.options.overrideName || addon.id;
+        addon.options.name ||
+        addon.options.overrideName ||
+        addonDetails.find((addonDetail) => addonDetail.id === addon.id)?.name ||
+        addon.id;
+      const addonId = `${addon.id}-${JSON.stringify(addon.options)}`;
       try {
-        const addonId = `${addon.id}-${JSON.stringify(addon.options)}`;
+        const startTime = new Date().getTime();
         const streams = await this.getStreamsFromAddon(
           addon,
           addonId,
@@ -851,17 +879,24 @@ export class AIOStreams {
         );
         parsedStreams.push(...streams);
         console.log(
-          `|INF| addon > getParsedStreams: Got ${streams.length} streams from addon ${addonName}`
+          `|INF| addon > getParsedStreams: Got ${streams.length} streams from addon ${addonName} in ${getTimeTakenSincePoint(startTime)}`
         );
-      } catch (error) {
+      } catch (error: any) {
         console.error(
           `|ERR| addon > getParsedStreams: Failed to get streams from ${addonName}: ${error}`
         );
+        errorStreams.push({
+          error: `${error.message.replace('-', '\n').replace(':', '\n')}`,
+          addon: {
+            id: addonId,
+            name: addonName,
+          },
+        });
       }
     });
 
     await Promise.all(addonPromises);
-    return parsedStreams;
+    return { errorStreams, parsedStreams };
   }
 
   private async getStreamsFromAddon(

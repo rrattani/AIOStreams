@@ -103,7 +103,9 @@ export async function getMediafusionStreams(
     mediafusionOptions.prioritiseDebrid &&
     !supportedServices.includes(mediafusionOptions.prioritiseDebrid)
   ) {
-    throw new Error('Invalid debrid service');
+    throw new Error(
+      `The service ${mediafusionOptions.prioritiseDebrid} is invalid for MediaFusion`
+    );
   }
 
   if (mediafusionOptions.prioritiseDebrid) {
@@ -112,13 +114,12 @@ export async function getMediafusionStreams(
     );
     if (!debridService) {
       throw new Error(
-        'Debrid service not found for ' + mediafusionOptions.prioritiseDebrid
+        `${mediafusionOptions.prioritiseDebrid} could not be found in your services`
       );
     }
     if (!debridService.credentials.apiKey) {
       throw new Error(
-        'Debrid service API key not found for ' +
-          mediafusionOptions.prioritiseDebrid
+        `Missing API key for ${mediafusionOptions.prioritiseDebrid}`
       );
     }
 
@@ -145,7 +146,7 @@ export async function getMediafusionStreams(
   // if no prioritised service is provided, create a mediafusion instance for each service
   const servicesToUse = usableServices.filter((service) => service.enabled);
   if (servicesToUse.length < 1) {
-    throw new Error('No supported service(s) enabled');
+    throw new Error(`No enabled services found for MediaFusion`);
   }
   const promises = servicesToUse.map(async (service) => {
     const mediafusionConfig = getMediaFusionConfig(
@@ -292,7 +293,7 @@ async function getConfigString(data: any): Promise<string> {
   const encryptedData = await response.json();
   if (encryptedData.status !== 'success') {
     throw new Error(
-      'Failed to encrypt data for mediafusion - ' + encryptedData.message
+      `Config encryption failed: ${encryptedData.message || 'Unknown error'}`
     );
   }
   return encryptedData.encrypted_str;

@@ -59,6 +59,8 @@ export const allowedLanguages = [
   'Malay',
   'Latino',
   'Unknown',
+  'Dual Audio',
+  'Dubbed',
 ];
 
 export function validateConfig(config: Config): {

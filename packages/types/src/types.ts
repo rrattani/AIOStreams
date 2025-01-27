@@ -30,6 +30,7 @@ export interface ParsedStream extends ParsedNameData {
   usenet?: {
     age?: string;
   };
+  type: 'usenet' | 'debrid' | 'p2p' | 'live' | 'unknown';
   duration?: number;
   url?: string;
   externalUrl?: string;
@@ -46,6 +47,14 @@ export interface ParsedStream extends ParsedNameData {
       };
       videoHash?: string;
     };
+  };
+}
+
+export interface ErrorStream {
+  error: string;
+  addon: {
+    id: string;
+    name: string;
   };
 }
 
@@ -94,6 +103,7 @@ export type VisualTag = { [key: string]: boolean };
 export type AudioTag = { [key: string]: boolean };
 export type Encode = { [key: string]: boolean };
 export type SortBy = { [key: string]: boolean | string | undefined };
+export type StreamType = { [key: string]: boolean };
 
 export interface Config {
   instanceCache?: any;
@@ -104,6 +114,7 @@ export interface Config {
   audioTags: AudioTag[];
   encodes: Encode[];
   sortBy: SortBy[];
+  streamTypes: StreamType[];
   onlyShowCachedStreams: boolean;
   prioritiseLanguage?: string; // from older configurations
   prioritisedLanguages: string[] | null;

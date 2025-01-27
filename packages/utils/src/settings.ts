@@ -50,9 +50,20 @@ export class Settings {
     process.env.DEFAULT_MEDIAFLOW_API_PASSWORD ?? '';
   public static readonly DEFAULT_MEDIAFLOW_PUBLIC_IP =
     process.env.DEFAULT_MEDIAFLOW_PUBLIC_IP ?? '';
+  public static readonly CACHE_STREAM_RESULTS = process.env.CACHE_STREAM_RESULTS
+    ? process.env.CACHE_STREAM_RESULTS !== 'false'
+    : true;
+  public static readonly CACHE_STREAM_RESULTS_TTL = process.env
+    .CACHE_STREAM_RESULTS_TTL
+    ? parseInt(process.env.CACHE_STREAM_RESULTS_TTL)
+    : 600;
+  public static readonly CACHE_MEDIAFLOW_IP_TTL = process.env
+    .CACHE_MEDIAFLOW_IP_TTL
+    ? parseInt(process.env.CACHE_MEDIAFLOW_IP_TTL)
+    : 900;
   public static readonly MAX_CACHE_SIZE = process.env.MAX_CACHE_SIZE
     ? parseInt(process.env.MAX_CACHE_SIZE)
-    : 1024;
+    : 10240;
   public static readonly MAX_ADDONS = process.env.MAX_ADDONS
     ? parseInt(process.env.MAX_ADDONS)
     : 15;

@@ -132,7 +132,7 @@
 .version {
   position: absolute;
   top: -5px;
-  right: -50px;
+  right: -60px;
   font-size: 14px;
   color: black;
   background-color: rgb(241, 241, 241);
@@ -146,10 +146,16 @@
     transform 0.2s ease;
 }
 
-.version:hover {
-  background-color: rgb(221, 221, 221);
-  transform: scale(1.1);
-  cursor: pointer;
+@media (pointer: fine) {
+  .version:hover {
+    background-color: rgb(221, 221, 221);
+    transform: scale(1.1);
+    cursor: pointer;
+  }
+}
+
+.version:active {
+  transform: scale(0.9);
 }
 
 .mediaFlowConfig {

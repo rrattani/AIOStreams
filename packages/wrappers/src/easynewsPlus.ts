@@ -26,6 +26,10 @@ export class EasynewsPlus extends BaseWrapper {
       indexerTimeout || Settings.DEFAULT_EASYNEWS_PLUS_TIMEMOUT
     );
   }
+
+  protected parseStream(stream: Stream): ParsedStream {
+    return { ...super.parseStream(stream), type: 'usenet' };
+  }
 }
 
 const getEasynewsPlusConfigString = (username: string, password: string) => {

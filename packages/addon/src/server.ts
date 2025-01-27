@@ -76,10 +76,6 @@ app.get('/', (req, res) => {
   res.redirect('/configure');
 });
 
-app.get('/cache-stats', (req, res) => {
-  res.send(cache.stats());
-});
-
 app.get(
   ['/_next/*', '/assets/*', '/icon.ico', '/configure.txt'],
   (req, res) => {

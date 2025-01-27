@@ -143,7 +143,7 @@ This addon can be deployed as a [Hugging Face](https://huggingface.co/) space.
 > [!IMPORTANT]
 > Hugging Face is centered around AI and as this addon is not related to AI, they may have begun blocking deployments of this addon which cause it to get stuck on building.
 >
-> To workaround this, you can create a fork of this repository, and after step 4, before clicking `Commit to main`, simply edit the file where it says Viren070/AIOStreams to use your forked repository instead.
+> To workaround this, you can create a fork of this repository with a random name (not AIOStreams), and after step 4, before clicking `Commit to main`, simply edit the file where it says Viren070/AIOStreams to use your forked repository instead.
 > Note: To update your instance with this workaround, you need to sync your fork on GitHub, and **then** do a `Factory Rebuild`
 
 
