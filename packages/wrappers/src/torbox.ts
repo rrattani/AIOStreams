@@ -6,7 +6,7 @@ import {
   Stream,
   StreamRequest,
 } from '@aiostreams/types';
-import { extractSizeInBytes, parseFilename } from '@aiostreams/parser';
+import { parseFilename } from '@aiostreams/parser';
 import { Settings } from '@aiostreams/utils';
 
 interface TorboxStream extends Stream {
@@ -44,7 +44,7 @@ export class Torbox extends BaseWrapper {
     );
   }
 
-  protected parseStream(stream: TorboxStream): ParsedStream | undefined {
+  protected parseStream(stream: TorboxStream): ParsedStream {
     let type = stream.type;
     let personal = false;
     if (stream.name.includes('Your Media')) {
@@ -112,7 +112,7 @@ export class Torbox extends BaseWrapper {
     const sizeInBytes =
       stream.size ||
       validateBehaviorHintSize(stream.behaviorHints?.videoSize) ||
-      (dSize ? extractSizeInBytes(dSize, 1000) : undefined);
+      (dSize ? this.extractSizeInBytes(dSize, 1000) : undefined);
 
     const provider = {
       id: 'torbox',

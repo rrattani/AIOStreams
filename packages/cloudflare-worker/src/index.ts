@@ -1,6 +1,7 @@
 import { AIOStreams, errorResponse, validateConfig } from '@aiostreams/addon';
 import manifest from '@aiostreams/addon/src/manifest';
 import { Config, StreamRequest } from '@aiostreams/types';
+import { Cache } from '@aiostreams/utils';
 
 const HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -19,6 +20,8 @@ function createResponse(message: string, status: number): Response {
     headers: HEADERS,
   });
 }
+
+const cache = new Cache(1024);
 
 export default {
   async fetch(request, env, ctx): Promise<Response> {
@@ -115,6 +118,14 @@ export default {
         }
 
         let streamRequest: StreamRequest = { id, type };
+
+        decodedConfig.requestingIp =
+          request.headers.get('X-Forwarded-For') ||
+          request.headers.get('X-Real-IP') ||
+          request.headers.get('CF-Connecting-IP') ||
+          request.headers.get('X-Client-IP') ||
+          undefined;
+        decodedConfig.instanceCache = cache;
 
         const aioStreams = new AIOStreams(decodedConfig);
         const streams = await aioStreams.getStreams(streamRequest);

@@ -1,6 +1,6 @@
 {
   "name": "@aiostreams/wrappers",
-  "version": "1.9.2",
+  "version": "1.10.0",
   "main": "./dist/index.js",
   "scripts": {
     "test": "vitest run --passWithNoTests",

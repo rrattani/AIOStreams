@@ -50,9 +50,15 @@ export class Settings {
     process.env.DEFAULT_MEDIAFLOW_API_PASSWORD ?? '';
   public static readonly DEFAULT_MEDIAFLOW_PUBLIC_IP =
     process.env.DEFAULT_MEDIAFLOW_PUBLIC_IP ?? '';
+  public static readonly MAX_CACHE_SIZE = process.env.MAX_CACHE_SIZE
+    ? parseInt(process.env.MAX_CACHE_SIZE)
+    : 1024;
   public static readonly MAX_ADDONS = process.env.MAX_ADDONS
     ? parseInt(process.env.MAX_ADDONS)
     : 15;
+  public static readonly MAX_KEYWORD_FILTERS = process.env.MAX_KEYWORD_FILTERS
+    ? parseInt(process.env.MAX_KEYWORD_FILTERS)
+    : 30;
   public static readonly MAX_MOVIE_SIZE = process.env.MAX_MOVIE_SIZE
     ? parseInt(process.env.MAX_MOVIE_SIZE)
     : 161061273600; // 150GiB
@@ -65,6 +71,9 @@ export class Settings {
   public static readonly MIN_TIMEOUT = process.env.MIN_TIMEOUT
     ? parseInt(process.env.MIN_TIMEOUT)
     : 1000;
+  public static readonly MEDIAFLOW_IP_TIMEOUT = process.env.MEDIAFLOW_IP_TIMEOUT
+    ? parseInt(process.env.MEDIAFLOW_IP_TIMEOUT)
+    : 30000;
   public static readonly DEFAULT_TIMEOUT = process.env.DEFAULT_TIMEOUT
     ? parseInt(process.env.DEFAULT_TIMEOUT)
     : 15000;

@@ -1,6 +1,8 @@
 import { Config } from '@aiostreams/types';
 import path from 'path';
 import { Settings } from './settings';
+import { getTextHash } from './crypto';
+import { Cache } from './cache';
 
 const PRIVATE_CIDR = /^(10\.|127\.|172\.(1[6-9]|2[0-9]|3[01])\.|192\.168\.)/;
 
@@ -62,7 +64,8 @@ export function createProxiedMediaFlowUrl(
 }
 
 export async function getMediaFlowPublicIp(
-  mediaFlowConfig: Config['mediaFlowConfig']
+  mediaFlowConfig: Config['mediaFlowConfig'],
+  cache: Cache<string, string>
 ) {
   try {
     if (!mediaFlowConfig) {
@@ -92,6 +95,17 @@ export async function getMediaFlowPublicIp(
       return null;
     }
 
+    const cacheKey = getTextHash(
+      `mediaFlowPublicIp:${mediaFlowConfig.proxyUrl}:${mediaFlowConfig.apiPassword}`
+    );
+    const cachedPublicIp = cache.get(cacheKey);
+    if (cachedPublicIp) {
+      console.debug(
+        `|DBG| mediaflow > getMediaFlowPublicIp > Returning cached public IP`
+      );
+      return cachedPublicIp;
+    }
+
     console.debug(
       '|DBG| mediaflow > getMediaFlowPublicIp > GET /proxy/ip?api_password=***'
     );
@@ -108,7 +122,7 @@ export async function getMediaFlowPublicIp(
       headers: {
         'Content-Type': 'application/json',
       },
-      signal: AbortSignal.timeout(20000),
+      signal: AbortSignal.timeout(Settings.MEDIAFLOW_IP_TIMEOUT),
     });
 
     if (!response.ok) {
@@ -117,6 +131,9 @@ export async function getMediaFlowPublicIp(
 
     const data = await response.json();
     const publicIp = data.ip;
+    if (publicIp) {
+      cache.set(cacheKey, publicIp, 900);
+    }
     return publicIp;
   } catch (error: any) {
     console.error(

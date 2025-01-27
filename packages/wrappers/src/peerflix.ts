@@ -1,10 +1,8 @@
-import { AddonDetail, ParsedNameData, StreamRequest } from '@aiostreams/types';
-import { parseFilename, extractSizeInBytes } from '@aiostreams/parser';
+import { AddonDetail, StreamRequest } from '@aiostreams/types';
 import { ParsedStream, Stream, Config } from '@aiostreams/types';
 import { BaseWrapper } from './base';
-import { addonDetails, serviceDetails } from '@aiostreams/utils';
+import { addonDetails } from '@aiostreams/utils';
 import { Settings } from '@aiostreams/utils';
-import { emojiToLanguage } from '@aiostreams/formatters';
 
 interface PeerflixStream extends Stream {
   seed?: string;
@@ -33,54 +31,6 @@ export class Peerflix extends BaseWrapper {
       userConfig,
       indexerTimeout || Settings.DEFAULT_PEERFLIX_TIMEOUT
     );
-  }
-
-  protected parseStream(stream: PeerflixStream): ParsedStream {
-    const filename = stream.title
-      ? stream.title.split('\n')[0]
-      : stream.behaviorHints?.filename?.trim();
-
-    const parsedFilename: ParsedNameData = parseFilename(filename || '');
-    const sizeInBytes =
-      stream.sizeBytes ||
-      (stream.title ? extractSizeInBytes(stream.title, 1024) : 0);
-
-    const debrid = this.parseServiceData(stream.name || '');
-    const seedersMatch = RegExp(/👤 (\d+)/).exec(stream.title!);
-    const seeders =
-      parseInt(stream.seed || seedersMatch?.[1] || '0') || undefined;
-
-    const indexerMatch = RegExp(
-      /[🌐] ([^\s\p{Emoji_Presentation}]+(?:\s[^\s\p{Emoji_Presentation}]+)*)/u
-    ).exec(stream.title || stream.description || '');
-    const indexer = indexerMatch ? indexerMatch[1] : undefined;
-
-    if (
-      (stream.language == 'en' || stream.name?.includes('🇬🇧')) &&
-      !parsedFilename.languages.includes('English')
-    ) {
-      parsedFilename.languages.push('English');
-    } else if (
-      (stream.language === 'es' || stream.name?.includes('🇪🇸')) &&
-      !parsedFilename.languages.includes('Spanish')
-    ) {
-      parsedFilename.languages.push('Spanish');
-    }
-
-    const parsedStream: ParsedStream = this.createParsedResult(
-      parsedFilename,
-      stream,
-      filename,
-      sizeInBytes,
-      debrid,
-      seeders,
-      undefined,
-      indexer,
-      undefined,
-      undefined,
-      this.extractInfoHash(stream.url || '')
-    );
-    return parsedStream;
   }
 }
 

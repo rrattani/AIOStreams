@@ -138,6 +138,7 @@
   background-color: rgb(241, 241, 241);
   font-weight: bold;
   padding: 5px;
+  -webkit-tap-highlight-color: transparent;
   border-radius: var(--borderRadius);
   transition:
     scale 0.2s ease,

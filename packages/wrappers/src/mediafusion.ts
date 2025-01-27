@@ -1,9 +1,7 @@
-import { AddonDetail, ParsedNameData, StreamRequest } from '@aiostreams/types';
-import { parseFilename, extractSizeInBytes } from '@aiostreams/parser';
+import { AddonDetail, StreamRequest } from '@aiostreams/types';
 import { ParsedStream, Stream, Config } from '@aiostreams/types';
 import { BaseWrapper } from './base';
-import { addonDetails, serviceDetails, Settings } from '@aiostreams/utils';
-import { emojiToLanguage } from '@aiostreams/formatters';
+import { addonDetails, Settings } from '@aiostreams/utils';
 
 export class MediaFusion extends BaseWrapper {
   constructor(
@@ -28,70 +26,15 @@ export class MediaFusion extends BaseWrapper {
   }
 
   protected parseStream(stream: Stream): ParsedStream {
-    let filename =
-      stream.behaviorHints?.filename?.trim() ||
-      stream.description?.split('\n')[0].replace('📂 ', '');
-
+    const parsedStream: ParsedStream = super.parseStream(stream);
+    // handle content warning streams and join all lines into a single string
     if (
-      filename &&
+      parsedStream.filename &&
       stream.description &&
-      filename.includes('Content Warning')
+      parsedStream.filename.includes('Content Warning')
     ) {
-      filename = stream.description.split('\n').join(' ');
+      parsedStream.filename = stream.description.split('\n').join(' ');
     }
-
-    const parsedFilename: ParsedNameData = parseFilename(
-      filename || stream.behaviorHints?.bingeGroup || stream.description || ''
-    );
-    const sizeInBytes = stream.behaviorHints?.videoSize
-      ? stream.behaviorHints.videoSize
-      : stream.description
-        ? extractSizeInBytes(stream.description, 1024)
-        : undefined;
-
-    const debrid = this.parseServiceData(stream.name || '');
-
-    const indexerMatch = RegExp(
-      /🔗 ([^\s\p{Emoji_Presentation}]+(?:\s[^\s\p{Emoji_Presentation}]+)*)/u
-    ).exec(stream.description || '');
-    const indexer = indexerMatch ? indexerMatch[1] : undefined;
-
-    const seedersMatch = RegExp(/👤 (\d+)/).exec(stream.description || '');
-    const seeders = seedersMatch ? parseInt(seedersMatch[1]) : undefined;
-
-    stream.description?.split('\n').forEach((line) => {
-      if (line.startsWith('🌐')) {
-        // the line contains the languages separated by ' + '.
-        // the languages can either be flag emojis or the language name.
-        const normaliseLanguage = (lang: string) => {
-          // convert emojis to language names, and uppercase the first letter of each word
-          return (emojiToLanguage(lang) || lang).replace(/\b\w/g, (char) =>
-            char.toUpperCase()
-          );
-        };
-        const languages = line.replace('🌐 ', '').split(' + ');
-        languages.forEach((lang) => {
-          const normalisedLanguage = normaliseLanguage(lang);
-          if (!parsedFilename.languages.includes(normalisedLanguage)) {
-            parsedFilename.languages.push(normalisedLanguage);
-          }
-        });
-      }
-    });
-
-    const parsedStream: ParsedStream = this.createParsedResult(
-      parsedFilename,
-      stream,
-      filename,
-      sizeInBytes,
-      debrid,
-      seeders,
-      undefined,
-      indexer,
-      undefined,
-      undefined,
-      this.extractInfoHash(stream.url || '')
-    );
     return parsedStream;
   }
 }

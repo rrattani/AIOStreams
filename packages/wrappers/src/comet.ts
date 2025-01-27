@@ -1,14 +1,8 @@
-import { AddonDetail, ParsedNameData, StreamRequest } from '@aiostreams/types';
-import { parseFilename, extractSizeInBytes } from '@aiostreams/parser';
+import { AddonDetail, StreamRequest } from '@aiostreams/types';
 import { ParsedStream, Stream, Config } from '@aiostreams/types';
 import { BaseWrapper } from './base';
-import { addonDetails, serviceDetails } from '@aiostreams/utils';
+import { addonDetails } from '@aiostreams/utils';
 import { Settings } from '@aiostreams/utils';
-
-interface CometStream extends Stream {
-  torrentTitle?: string;
-  torrentSize?: number;
-}
 
 export class Comet extends BaseWrapper {
   constructor(
@@ -30,44 +24,6 @@ export class Comet extends BaseWrapper {
       userConfig,
       indexerTimeout || Settings.DEFAULT_COMET_TIMEOUT
     );
-  }
-
-  protected parseStream(stream: CometStream): ParsedStream {
-    const filename =
-      stream.behaviorHints?.filename?.trim() ||
-      stream.description?.split('\n')[0] ||
-      stream.torrentTitle;
-
-    const parsedFilename: ParsedNameData = parseFilename(
-      filename || stream.description || ''
-    );
-    const sizeInBytes = stream.torrentSize
-      ? stream.torrentSize
-      : stream.description
-        ? extractSizeInBytes(stream.description, 1024)
-        : undefined;
-
-    const debrid = this.parseServiceData(stream.name || '');
-
-    const indexerMatch = RegExp(/🔎 ([a-zA-Z0-9]+)/).exec(
-      stream.description || ''
-    );
-    const indexer = indexerMatch ? indexerMatch[1] : undefined;
-
-    const parsedStream: ParsedStream = this.createParsedResult(
-      parsedFilename,
-      stream,
-      filename,
-      sizeInBytes,
-      debrid,
-      undefined,
-      undefined,
-      indexer,
-      undefined,
-      undefined,
-      this.extractInfoHash(stream.url || '')
-    );
-    return parsedStream;
   }
 }
 

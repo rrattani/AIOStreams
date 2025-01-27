@@ -33,6 +33,9 @@ export function emojiToLanguage(emoji: string): string | undefined {
   )?.[0];
 }
 
+export function codeToLanguage(code: string): string | undefined {
+  return codeLanguageMap[code];
+}
 /**
  * A mapping of language names to their corresponding emoji flags.
  *
@@ -89,4 +92,55 @@ const languageEmojiMap: Record<string, string> = {
   malay: '🇲🇾',
   latino: '💃🏻',
   Latino: '🇲🇽',
+};
+
+const codeLanguageMap: Record<string, string> = {
+  EN: 'english',
+  JA: 'japanese',
+  ZH: 'chinese',
+  RU: 'russian',
+  AR: 'arabic',
+  PT: 'portuguese',
+  ES: 'spanish',
+  FR: 'french',
+  DE: 'german',
+  IT: 'italian',
+  KO: 'korean',
+  HI: 'hindi',
+  BN: 'bengali',
+  PA: 'punjabi',
+  MR: 'marathi',
+  GU: 'gujarati',
+  TA: 'tamil',
+  TE: 'telugu',
+  KN: 'kannada',
+  ML: 'malayalam',
+  TH: 'thai',
+  VI: 'vietnamese',
+  ID: 'indonesian',
+  TR: 'turkish',
+  HE: 'hebrew',
+  FA: 'persian',
+  UK: 'ukrainian',
+  EL: 'greek',
+  LT: 'lithuanian',
+  LV: 'latvian',
+  ET: 'estonian',
+  PL: 'polish',
+  CS: 'czech',
+  SK: 'slovak',
+  HU: 'hungarian',
+  RO: 'romanian',
+  BG: 'bulgarian',
+  SR: 'serbian',
+  HR: 'croatian',
+  SL: 'slovenian',
+  NL: 'dutch',
+  DA: 'danish',
+  FI: 'finnish',
+  SV: 'swedish',
+  NO: 'norwegian',
+  MS: 'malay',
+  LA: 'latino',
+  MX: 'Latino',
 };

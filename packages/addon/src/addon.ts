@@ -58,6 +58,32 @@ export class AIOStreams {
     );
     const filterStartTime = new Date().getTime();
 
+    const excludeRegex = this.config.excludeFilters
+      ? new RegExp(
+          `(?<![^ [(_\\-.])(${this.config.excludeFilters
+            .map((filter) => filter.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&'))
+            .map((filter) => filter.replace(/\s/g, '[ .\\-_]?'))
+            .join('|')})(?=[ \\)\\]_.-]|$)`,
+          'i'
+        )
+      : null;
+
+    const strictIncludeRegex = this.config.strictIncludeFilters
+      ? new RegExp(
+          `(?<![^ [(_\\-.])(${this.config.strictIncludeFilters
+            .map((filter) => filter.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&'))
+            .map((filter) => filter.replace(/\s/g, '[ .\\-_]?'))
+            .join('|')})(?=[ \\)\\]_.-]|$)`,
+          'i'
+        )
+      : null;
+
+    excludeRegex || strictIncludeRegex
+      ? console.log(
+          `|INF| addon > getStreams: Created regex filters: excludeRegex: ${excludeRegex}, strictIncludeRegex: ${strictIncludeRegex}`
+        )
+      : null;
+
     let filteredResults = parsedStreams.filter((parsedStream) => {
       const resolutionFilter = this.config.resolutions.find(
         (resolution) => resolution[parsedStream.resolution]
@@ -191,6 +217,28 @@ export class AIOStreams {
       )
         return false;
 
+      // apply keyword filters
+      if (
+        this.config.excludeFilters &&
+        this.config.excludeFilters.length > 0 &&
+        parsedStream.filename &&
+        excludeRegex
+      ) {
+        if (excludeRegex.test(parsedStream.filename)) {
+          return false;
+        }
+      }
+
+      if (
+        this.config.strictIncludeFilters &&
+        this.config.strictIncludeFilters.length > 0 &&
+        parsedStream.filename &&
+        strictIncludeRegex
+      ) {
+        if (!strictIncludeRegex.test(parsedStream.filename)) {
+          return false;
+        }
+      }
       return true;
     });
 

@@ -1,12 +1,8 @@
-/*{"maxTorrents":30,"priotizePackTorrents":2,"excludeKeywords":[],"debridId":"alldebrid","hideUncached":false,"sortCached":[["quality",true],["size",true]],"sortUncached":[["seeders",true]],"forceCacheNextEpisode":false,"priotizeLanguages":[],"indexerTimeoutSec":60,"metaLanguage":"","enableMediaFlow":false,"mediaflowProxyUrl":"","mediaflowApiPassword":"","mediaflowPublicIp":"","qualities":[0,360,480,720,1080,2160],"indexers":["bitsearch","eztv","thepiratebay","therarbg","yts"],"debridApiKey":"KfejOmW7c5gUC3WNFCCq"}*/
-
-import { AddonDetail, ParsedNameData, StreamRequest } from '@aiostreams/types';
-import { parseFilename, extractSizeInBytes } from '@aiostreams/parser';
-import { ParsedStream, Stream, Config } from '@aiostreams/types';
+import { AddonDetail, StreamRequest } from '@aiostreams/types';
+import { ParsedStream, Config } from '@aiostreams/types';
 import { BaseWrapper } from './base';
-import { addonDetails, serviceDetails } from '@aiostreams/utils';
+import { addonDetails } from '@aiostreams/utils';
 import { Settings } from '@aiostreams/utils';
-import { emojiToLanguage } from '@aiostreams/formatters';
 
 // name, title, url
 export class Jackettio extends BaseWrapper {
@@ -29,66 +25,6 @@ export class Jackettio extends BaseWrapper {
       userConfig,
       indexerTimeout || Settings.DEFAULT_JACKETTIO_TIMEOUT
     );
-  }
-
-  protected parseStream(stream: Stream): ParsedStream {
-    const filename =
-      stream.behaviorHints?.filename?.trim() ||
-      stream.title?.split('\n')[0] ||
-      undefined;
-
-    const parsedFilename: ParsedNameData = parseFilename(
-      filename || stream.title || ''
-    );
-    const sizeInBytes = stream.title
-      ? extractSizeInBytes(stream.title, 1024)
-      : undefined;
-
-    const debrid = this.parseServiceData(stream.name || '');
-    if (debrid?.id && debrid.cached === undefined) {
-      debrid.cached = false;
-    }
-
-    const indexerAndLanguages = RegExp(
-      /⚙️([^\p{Emoji_Presentation}]+)([\p{Emoji_Presentation}\s]*)$/u
-    ).exec(stream.title || '');
-    const indexer = indexerAndLanguages?.[1];
-    indexerAndLanguages?.[2]
-      .trim()
-      .split(' ')
-      .filter((lang) => lang)
-      .map((lang) => {
-        let convertedLanguage = lang.trim();
-        if (convertedLanguage === 'Multi Audio') {
-          convertedLanguage = 'Multi';
-        }
-        convertedLanguage =
-          emojiToLanguage(convertedLanguage) || convertedLanguage;
-        convertedLanguage = convertedLanguage.replace(/\b\w/g, (char) =>
-          char.toUpperCase()
-        );
-        if (!parsedFilename.languages.includes(convertedLanguage)) {
-          parsedFilename.languages.push(convertedLanguage);
-        }
-      });
-
-    const seederMatch = stream.title?.match(/(👥|👤) (\d+)/)?.[2];
-    const seeders = seederMatch ? parseInt(seederMatch[1]) : undefined;
-
-    const parsedStream: ParsedStream = this.createParsedResult(
-      parsedFilename,
-      stream,
-      filename,
-      sizeInBytes,
-      debrid,
-      seeders,
-      undefined,
-      indexer,
-      undefined,
-      undefined,
-      this.extractInfoHash(stream.url || '')
-    );
-    return parsedStream;
   }
 }
 

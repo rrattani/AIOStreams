@@ -1,12 +1,8 @@
-import { AddonDetail, ParsedNameData, StreamRequest } from '@aiostreams/types';
-import {
-  parseFilename,
-  extractSizeInBytes,
-  extractDurationInMs,
-} from '@aiostreams/parser';
+import { ParsedNameData, StreamRequest } from '@aiostreams/types';
+import { parseFilename } from '@aiostreams/parser';
 import { ParsedStream, Stream, Config } from '@aiostreams/types';
 import { BaseWrapper } from './base';
-import { addonDetails, serviceDetails } from '@aiostreams/utils';
+import { serviceDetails } from '@aiostreams/utils';
 import { Settings } from '@aiostreams/utils';
 
 export class Easynews extends BaseWrapper {
@@ -29,38 +25,6 @@ export class Easynews extends BaseWrapper {
       userConfig,
       indexerTimeout || Settings.DEFAULT_EASYNEWS_TIMEMOUT
     );
-  }
-
-  protected parseStream(stream: Stream): ParsedStream {
-    const [filename, sizeString, durationString] =
-      stream.description?.split('\n') || [];
-
-    const parsedFilename: ParsedNameData = parseFilename(
-      filename || stream.description || ''
-    );
-    const sizeInBytes = stream.description
-      ? extractSizeInBytes(sizeString, 1024)
-      : undefined;
-
-    const provider = {
-      id: 'easynews',
-      cached: true,
-    };
-
-    const durationInMs = extractDurationInMs(durationString || '');
-
-    const parsedStream: ParsedStream = this.createParsedResult(
-      parsedFilename,
-      stream,
-      filename,
-      sizeInBytes,
-      provider,
-      undefined,
-      undefined,
-      undefined,
-      durationInMs
-    );
-    return parsedStream;
   }
 }
 

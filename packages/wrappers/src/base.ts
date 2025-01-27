@@ -5,14 +5,16 @@ import {
   ParsedNameData,
   Config,
 } from '@aiostreams/types';
-import { extractSizeInBytes, parseFilename } from '@aiostreams/parser';
+import { parseFilename } from '@aiostreams/parser';
 import {
   getMediaFlowConfig,
   getMediaFlowPublicIp,
+  getTextHash,
   serviceDetails,
   Settings,
 } from '@aiostreams/utils';
-/**/ // import { fetch as uFetch, ProxyAgent } from 'undici';
+// import { fetch as uFetch, ProxyAgent } from 'undici';
+import { emojiToLanguage, codeToLanguage } from '@aiostreams/formatters';
 
 export class BaseWrapper {
   private readonly streamPath: string = 'stream/{type}/{id}.json';
@@ -66,7 +68,10 @@ export class BaseWrapper {
     let userIp = this.userConfig.requestingIp;
     const mediaFlowConfig = getMediaFlowConfig(this.userConfig);
     if (mediaFlowConfig.mediaFlowEnabled) {
-      const mediaFlowIp = await getMediaFlowPublicIp(mediaFlowConfig);
+      const mediaFlowIp = await getMediaFlowPublicIp(
+        mediaFlowConfig,
+        this.userConfig.instanceCache
+      );
       if (!mediaFlowIp) {
         throw new Error('Failed to get public IP from MediaFlow');
       }
@@ -82,6 +87,17 @@ export class BaseWrapper {
     }, this.indexerTimeout);
 
     const url = this.getStreamUrl(streamRequest);
+    const cache = this.userConfig.instanceCache;
+    const requestCacheKey = getTextHash(url);
+    const cachedStreams = cache.get(requestCacheKey);
+    const sanitisedUrl =
+      new URL(url).hostname + '/****/' + new URL(url).pathname.split('/').pop();
+    if (cachedStreams) {
+      console.debug(
+        `|DBG| wrappers > base > ${this.addonName}: Returning cached streams for ${sanitisedUrl}`
+      );
+      return cachedStreams;
+    }
     try {
       // Add requesting IP to headers
       const headers = new Headers();
@@ -95,8 +111,6 @@ export class BaseWrapper {
         headers.set('X-Forwarded-For', userIp);
         headers.set('X-Real-IP', userIp);
       }
-      const urlParts = url.split('/');
-      const sanitisedUrl = `${urlParts[0]}//${urlParts[2]}/*************/${urlParts.slice(-3).join('/')}`;
       console.log(
         `|INF| wrappers > base > ${this.addonName}: Fetching with timeout ${this.indexerTimeout}ms from ${sanitisedUrl}`
       );
@@ -145,6 +159,7 @@ export class BaseWrapper {
       if (!results.streams) {
         throw new Error('Failed to respond with streams');
       }
+      cache.set(requestCacheKey, results.streams, 600); // cache for 10 minutes
       return results.streams;
     } catch (error: any) {
       clearTimeout(timeout);
@@ -154,10 +169,6 @@ export class BaseWrapper {
       }
       return Promise.reject(new Error(message));
     }
-  }
-
-  protected extractInfoHash(url: string): string | undefined {
-    return url.match(/(?<=[-/[(;&])[a-fA-F0-9]{40}(?=[-\]\)/;&])/)?.[0];
   }
 
   protected createParsedResult(
@@ -212,6 +223,115 @@ export class BaseWrapper {
       },
     };
   }
+  protected parseStream(stream: { [key: string]: any }): ParsedStream {
+    // attempt to look for filename in behaviorHints.filename
+    let filename =
+      stream?.behaviorHints?.filename || stream.torrentTitle || stream.filename;
+
+    // if filename behaviorHint is not present, attempt to look for a filename in the stream description or title
+    let description = stream.description || stream.title;
+
+    if (!filename && description) {
+      const lines = description.split('\n');
+      filename =
+        lines.find(
+          (line: string) =>
+            line.match(
+              /(?<![^ [_(\-.]])(?:s(?:eason)?[ .\-_]?(\d+)[ .\-_]?(?:e(?:pisode)?[ .\-_]?(\d+))?|(\d+)[xX](\d+))(?![^ \])_.-])/
+            ) || line.match(/(?<![^ [_(\-.])(\d{4})(?=[ \])_.-]|$)/i)
+        ) || lines[0];
+    }
+
+    let stringToParse: string = filename || description || '';
+    if (
+      !(
+        filename.match(
+          /(?<![^ [_(\-.]])(?:s(?:eason)?[ .\-_]?(\d+)[ .\-_]?(?:e(?:pisode)?[ .\-_]?(\d+))?|(\d+)[xX](\d+))(?![^ \])_.-])/
+        ) || filename.match(/(?<![^ [_(\-.])(\d{4})(?=[ \])_.-]|$)/i)
+      )
+    ) {
+      stringToParse = description.replace(/\n/g, ' ').trim();
+    }
+    let parsedInfo: ParsedNameData = parseFilename(stringToParse);
+
+    // look for size in one of the many random places it could be
+    let size: number | undefined;
+    size =
+      stream.behaviorHints?.videoSize ||
+      stream.size ||
+      stream.sizebytes ||
+      stream.sizeBytes ||
+      stream.torrentSize ||
+      (description && this.extractSizeInBytes(description, 1024)) ||
+      (stream.name && this.extractSizeInBytes(stream.name, 1024)) ||
+      undefined;
+
+    if (typeof size === 'string') {
+      size = parseInt(size);
+    }
+    // look for seeders
+    let seeders: string | undefined;
+    if (description) {
+      seeders = this.extractStringBetweenEmojis(['👥', '👤'], description);
+    }
+
+    // look for indexer
+    let indexer: string | undefined;
+    if (description) {
+      indexer = this.extractStringBetweenEmojis(
+        ['🌐', '⚙️', '🔗', '🔎', '☁️'],
+        description
+      );
+    }
+
+    [
+      ...this.extractCountryFlags(description),
+      ...this.extractCountryCodes(description),
+    ]
+      .map(
+        (codeOrFlag) =>
+          emojiToLanguage(codeOrFlag) || codeToLanguage(codeOrFlag)
+      )
+      .filter((lang) => lang !== undefined)
+      .map((lang) =>
+        lang
+          .trim()
+          .split(' ')
+          .map(
+            (word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+          )
+          .join(' ')
+      )
+      .forEach((lang) => {
+        if (lang && !parsedInfo.languages.includes(lang)) {
+          parsedInfo.languages.push(lang);
+        }
+      });
+
+    const duration = stream.duration || this.extractDurationInMs(description);
+    // look for providers
+    let provider: ParsedStream['provider'] = this.parseServiceData(
+      stream.name || ''
+    );
+
+    if (stream.infoHash && provider) {
+      // if its a p2p result, it is not from a debrid service
+      provider = undefined;
+    }
+    return this.createParsedResult(
+      parsedInfo,
+      stream,
+      filename,
+      size,
+      provider,
+      seeders ? parseInt(seeders) : undefined,
+      undefined,
+      indexer,
+      duration,
+      stream.personal,
+      stream.infoHash || this.extractInfoHash(stream.url || '')
+    );
+  }
 
   protected parseServiceData(
     string: string
@@ -245,91 +365,107 @@ export class BaseWrapper {
         };
       }
     });
-    if (!provider) {
-      console.log(
-        `|WRN| wrappers > base > parseServiceData: No provider found for ${string}`
-      );
-    }
     return provider;
   }
-  protected parseStream(stream: {
-    [key: string]: any;
-  }): ParsedStream | undefined {
-    // attempt to look for filename in behaviorHints.filename, return undefined if not found
-    let filename = stream?.behaviorHints?.filename;
+  protected extractSizeInBytes(string: string, k: number): number {
+    const sizePattern = /(\d+(\.\d+)?)\s?(KB|MB|GB)/i;
+    const match = string.match(sizePattern);
+    if (!match) return 0;
 
-    // if filename behaviorHint is not present, attempt to look for a filename in the stream description or title
-    let description = stream.description || stream.title;
+    const value = parseFloat(match[1]);
+    const unit = match[3];
 
-    if (!filename && description) {
-      console.log(
-        `|DBG| wrappers > base > parseStream: No filename found in behaviorHints, attempting to parse from description`
-      );
-      const lines = description.split('\n');
-      filename =
-        lines.find(
-          (line: string) =>
-            line.match(
-              /(?<![^ [_(\-.]])(?:s(?:eason)?[ .\-_]?(\d+)[ .\-_]?(?:e(?:pisode)?[ .\-_]?(\d+))?|(\d+)[xX](\d+))(?![^ \])_.-])/
-            ) || line.match(/(?<![^ [_(\-.])(\d{4})(?=[ \])_.-]|$)/i)
-        ) || lines[0];
-      console.log(
-        `|DBG| wrappers > base > parseStream: With description: ${description}, found filename: ${filename}`
-      );
-    } else if (!description) {
-      console.log(
-        `|WRN| wrappers > base > parseStream: No description found, filename could not be determined`
-      );
+    switch (unit.toUpperCase()) {
+      case 'TB':
+        return value * k * k * k * k;
+      case 'GB':
+        return value * k * k * k;
+      case 'MB':
+        return value * k * k;
+      case 'KB':
+        return value * k;
+      default:
+        return 0;
+    }
+  }
+
+  protected extractDurationInMs(input: string): number {
+    // Regular expression to match different formats of time durations
+    const regex =
+      /(\d+)h[:\s]?(\d+)m[:\s]?(\d+)s|(\d+)h[:\s]?(\d+)m|(\d+)h|(\d+)m|(\d+)s/gi;
+    const match = regex.exec(input);
+    if (!match) {
+      return 0;
     }
 
-    let parsedInfo: ParsedNameData = parseFilename(filename || '');
+    const hours = parseInt(match[1] || match[4] || match[5] || '0', 10);
+    const minutes = parseInt(match[2] || match[5] || match[6] || '0', 10);
+    const seconds = parseInt(match[3] || match[6] || match[7] || '0', 10);
 
-    // look for size in one of the many random places it could be
-    let size: number | undefined;
-    size =
-      stream.behaviorHints?.videoSize ||
-      stream.size ||
-      stream.sizebytes ||
-      (description && extractSizeInBytes(description, 1024)) ||
-      (stream.name && extractSizeInBytes(stream.name, 1024)) ||
-      undefined;
+    // Convert to milliseconds
+    const totalMilliseconds = (hours * 3600 + minutes * 60 + seconds) * 1000;
 
-    // look for seeders
-    let seeders: string | undefined;
-    if (description) {
-      seeders = description.match(/(👥|👤) (\d+)/)?.[2];
-    }
+    return totalMilliseconds;
+  }
 
-    // look for indexer
-    let indexer: string | undefined;
-    if (description) {
-      const indexerMatch = RegExp(
-        /[🌐⚙️🔗] ([^\s\p{Emoji_Presentation}]+(?:\s[^\s\p{Emoji_Presentation}]+)*)/u
-      ).exec(description || '');
-      indexer = indexerMatch ? indexerMatch[1] : undefined;
-    }
+  protected extractStringBetweenEmojis(
+    startingEmojis: string[],
+    string: string,
+    endingEmojis?: string[]
+  ): string | undefined {
+    const emojiPattern = /[\p{Emoji_Presentation}]/u;
+    const startPattern = new RegExp(`(${startingEmojis.join('|')})`, 'u');
+    const endPattern = endingEmojis
+      ? new RegExp(`(${endingEmojis.join('|')}|$|\n)`, 'u')
+      : new RegExp(`(${emojiPattern.source}|$|\n)`, 'u');
 
-    // look for providers
-    let provider: ParsedStream['provider'] = this.parseServiceData(
-      stream.name || ''
-    );
+    const startMatch = string.match(startPattern);
+    if (!startMatch) return undefined;
 
-    if (stream.infoHash && provider) {
-      // if its a p2p result, it is not from a debrid service
-      provider = undefined;
-    }
-    return this.createParsedResult(
-      parsedInfo,
-      stream,
-      filename,
-      size,
-      provider,
-      seeders ? parseInt(seeders) : undefined,
-      undefined,
-      indexer,
-      stream.duration,
-      stream.personal,
-      stream.infoHash || this.extractInfoHash(stream.url || '')
-    );
+    const startIndex = startMatch.index! + startMatch[0].length;
+    const remainingString = string.slice(startIndex);
+
+    const endMatch = remainingString.match(endPattern);
+    const endIndex = endMatch ? endMatch.index! : remainingString.length;
+
+    return remainingString.slice(0, endIndex).trim();
+  }
+
+  protected extractStringAfter(
+    startingPattern: string,
+    string: string,
+    endingPattern?: string
+  ) {
+    const startPattern = new RegExp(startingPattern, 'u');
+    const endPattern = endingPattern
+      ? new RegExp(endingPattern, 'u')
+      : new RegExp(/$/u);
+
+    const startMatch = string.match(startPattern);
+    if (!startMatch) return undefined;
+
+    const startIndex = startMatch.index! + startMatch[0].length;
+    const remainingString = string.slice(startIndex);
+
+    const endMatch = remainingString.match(endPattern);
+    const endIndex = endMatch ? endMatch.index! : remainingString.length;
+
+    return remainingString.slice(0, endIndex).trim();
+  }
+
+  protected extractCountryFlags(string: string): string[] {
+    const countryFlagPattern = /[\p{Regional_Indicator}]/u;
+    const matches = string.match(countryFlagPattern);
+    return matches ? [...new Set(matches)] : [];
+  }
+
+  protected extractCountryCodes(string: string): string[] {
+    const countryCodePattern = /\b(?!AC|DV)[A-Z]{2}\b/g;
+    const matches = string.match(countryCodePattern);
+    return matches ? [...new Set(matches)] : [];
+  }
+
+  protected extractInfoHash(url: string): string | undefined {
+    return url.match(/(?<=[-/[(;:&])[a-fA-F0-9]{40}(?=[-\]\)/:;&])/)?.[0];
   }
 }

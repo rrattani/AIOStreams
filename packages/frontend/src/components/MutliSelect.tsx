@@ -1,8 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useState } from 'react';
 import Select, { StylesConfig } from 'react-select';
+import FakeSelect from './FakeSelect';
 
-const selectStyles: StylesConfig = {
+export const selectStyles: StylesConfig = {
   control: (baseStyles: any, state: { isFocused: boolean }) => ({
     ...baseStyles,
     borderWidth: '0px',
@@ -115,18 +116,7 @@ const MultiSelect: React.FC<MultiSelectProps> = ({
           styles={selectStyles}
         />
       ) : (
-        <div
-          style={{
-            height: '42px',
-            margin: '0',
-            backgroundColor: 'white',
-            borderRadius: 'var(--borderRadius)',
-            display: 'flex',
-            alignItems: 'center',
-          }}
-        >
-          <p style={{ margin: '10px', color: '#808090' }}>Select...</p>
-        </div>
+        <FakeSelect innerText="Select..." />
       )}
     </>
   );

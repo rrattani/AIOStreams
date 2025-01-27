@@ -1,4 +1,4 @@
-import { parseFilename, extractSizeInBytes } from '@aiostreams/parser';
+import { parseFilename } from '@aiostreams/parser';
 import {
   ParsedStream,
   Stream,
@@ -43,8 +43,8 @@ export class DMMCast extends BaseWrapper {
       : stream.behaviorHints?.filename?.trim();
 
     const parsedFilename: ParsedNameData = parseFilename(filename || '');
-    const sizeInBytes = stream.title
-      ? extractSizeInBytes(stream.title, 1024)
+    const sizeInBytes = stream.title?.split('\n').pop()?.includes('📦')
+      ? this.extractSizeInBytes(stream.title.split('\n').pop()!, 1024)
       : 0;
 
     const parsedStream: ParsedStream = this.createParsedResult(

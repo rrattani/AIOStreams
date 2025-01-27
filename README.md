@@ -141,13 +141,12 @@ I would recommend using Hugging Face over the other options, it is fast and is s
 This addon can be deployed as a [Hugging Face](https://huggingface.co/) space.
 
 > [!IMPORTANT]
-> Hugging Face may have begun blocking deployments of this addon which cause it to get stuck on building. 
+> Hugging Face is centered around AI and as this addon is not related to AI, they may have begun blocking deployments of this addon which cause it to get stuck on building.
+>
+> To workaround this, you can create a fork of this repository, and after step 4, before clicking `Commit to main`, simply edit the file where it says Viren070/AIOStreams to use your forked repository instead.
+> Note: To update your instance with this workaround, you need to sync your fork on GitHub, and **then** do a `Factory Rebuild`
 
-> [!WARNING]
-> Hugging Face is centered around AI and as this addon is not related to AI, they may take it down.
 
-> [!NOTE]
-> GDrive doesn't seem to work on Hugging Face Spaces. I'm not sure why.
 
 1. Create a Hugging Face account and on the [home page](https://huggingface.co) create a new space.
 
@@ -234,6 +233,34 @@ This addon can be deployed as a [Cloudflare Worker](https://workers.cloudflare.c
 > [!WARNING]
 > A Cloudflare Worker may get blocked by Torrentio. You may also encounter a build error, in which case you will have to edit the code slightly and lose the functionality of the `ADDON_PROXY` environment variable
 
+There are 2 methods to do this. Method 2 requires you to have Git and Node.js installed, method 1 does not, and only requires a web browser and a Cloudflare account.
+
+**Method 1**
+
+1. Fork my GitHub repository.
+2. Head to the [Cloudflare Dashboard](https://dash.cloudflare.com/sign-up/workers-and-pages), signing up for an account if needed.
+3. Click the `Create` button and call your worker `aiostreams`
+4. Click `Continue to project` after it's done creating
+5. Go to the `Settings` tab.
+6. Scroll down to the `Build` section, and click `Connect` on the Git repository option.
+   - Choose your GitHub account, and the repository you created earlier when forking my repository
+   - Leave the branch as main
+   - Build command:
+        ```bash
+        npm install | npm run build
+        ```
+   - Deploy command:
+       ```bash
+       npm run deploy:cloudflare-worker
+       ```
+7. Click `Connect`
+8. Trigger a redeployment by going to the `Deployments` tab, clicking `Deploy version`, and `Deploy`
+9. You can find the URL for your cloudflare worker by clicking `View version` at the `Deployments` tab under the `Active deployments` section
+
+If you get an error about the `node:sqlite` module, follow [these instructions](https://github.com/Viren070/AIOStreams/issues/32#issuecomment-2602643959), editing the code at your forked GitHub repository. 
+
+**Method 2**
+
 1. Sign up for a [Cloudflare Account](https://dash.cloudflare.com/sign-up/workers-and-pages)
 2. Install Node.js (I would recommend using package managers e.g. fnm on Windows)
 3. Install Git
@@ -253,6 +280,12 @@ If you get an error about the `node:sqlite` module, follow [these instructions](
 
 ##### Updating
 
+**Method 1**
+
+Go to your forked GitHub repository and click sync fork. This should trigger a deployment, if not follow the same steps above to redeploy.
+
+**Method 2**
+
 To update the addon, you can simply run the following commands to pull the latest changes, build the project, and deploy the worker.
 This will update the worker with the latest changes, which may not be stable. In case, you get the build error about `node:sqlite` again, follow the instructions linked above again. 
 
@@ -269,13 +302,14 @@ https://render.com/
 > [!WARNING]
 > Free instances 'spin down' after 15 minutes of inactivity. In this suspended state, it can take around a minute to start back up again when you make a request to it.
 
+> [!TIP]
+> Use a service (like [cron-job.org](https://cron-job.org/en/) or [UptimeRobot](https://uptimerobot.com/)) to automatically ping the URL of your instance + /health to keep it alive (e.g. if your instance was at `https://aiostreams.onrender.com`, create a job to ping `https://aiostreams.onrender.com/health` every 10 minutes) 
+
 1. Deploy a new web service
 2. Select `Public Git Repository` as the source
 3. Enter `https://github.com/Viren070/AIOStreams`
 4. Deploy
 
-> [!TIP]
-> Use a service to automatically ping the instance to keep it alive. 
 
 ##### Updating
 
@@ -288,7 +322,7 @@ It is recommend to disable the `Auto Deploy` feature as the latest changes may n
 > [!NOTE] 
 > Use the link below to support me, 33% of your AIOStreams subscription will go to me ❤️ 
 
-AIOStreams is available as a [paid product](https://store.elfhosted.com/product/aiostreams/elf/viren070/) on [ElfHosted](https://elfhosted.com). This offers you a no-hassle experience where you can expect things to "just work". 
+AIOStreams is available as a [paid product on ElfHosted](https://store.elfhosted.com/product/aiostreams/elf/viren070/). This offers you a no-hassle experience where you can expect things to "just work". 
 
 #### Heroku (paid) 
 
@@ -358,6 +392,8 @@ You need Node.js and git installed. Node v22 and npm v10.9 were used in the deve
 You can change the PORT environment variable to change the port that the addon will listen on.
 
 ## Configuring
+
+If you would like an explanation on the configuration options at the /configure page, have a look at this [guide for aiostreams](https://guides.viren070.me/stremio/addons/aiostreams) that I made. 
 
 Outside of the configuration page, the behaviour of this addon can also be changed with environment variables.  
 Most users don't need to set any environment variables. However, if you do, the SECRET_KEY is the one you might want to configure. This key enables encrypted manifest URLs, which help protect your API keys.

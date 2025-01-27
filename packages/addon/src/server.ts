@@ -11,6 +11,7 @@ import {
   addonDetails,
   compressAndEncrypt,
   parseAndDecryptString,
+  Cache,
 } from '@aiostreams/utils';
 
 const app = express();
@@ -55,6 +56,8 @@ if (Settings.CUSTOM_CONFIGS) {
   }
 }
 
+const cache = new Cache(Settings.MAX_CACHE_SIZE);
+
 // Built-in middleware for parsing JSON
 app.use(express.json());
 // Built-in middleware for parsing URL-encoded data
@@ -71,6 +74,10 @@ app.use((req, res, next) => {
 
 app.get('/', (req, res) => {
   res.redirect('/configure');
+});
+
+app.get('/cache-stats', (req, res) => {
+  res.send(cache.stats());
 });
 
 app.get(
@@ -184,7 +191,12 @@ app.get('/:config/stream/:type/:id.json', (req, res: Response): void => {
       );
       return;
     }
-    configJson.requestingIp = req.get('CF-Connecting-IP') || req.ip;
+    configJson.requestingIp =
+      req.get('X-Forwarded-For') ||
+      req.get('X-Real-IP') ||
+      req.get('CF-Connecting-IP') ||
+      req.ip;
+    configJson.instanceCache = cache;
     const aioStreams = new AIOStreams(configJson);
     aioStreams.getStreams(streamRequest).then((streams) => {
       res.json({ streams: streams });

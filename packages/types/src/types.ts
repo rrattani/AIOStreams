@@ -96,6 +96,7 @@ export type Encode = { [key: string]: boolean };
 export type SortBy = { [key: string]: boolean | string | undefined };
 
 export interface Config {
+  instanceCache?: any;
   requestingIp?: string;
   resolutions: Resolution[];
   qualities: Quality[];
@@ -149,6 +150,8 @@ export interface Config {
   addonNameInDescription?: boolean;
   cleanResults: boolean;
   maxResultsPerResolution: number | null;
+  excludeFilters: string[] | null;
+  strictIncludeFilters: string[] | null;
   mediaFlowConfig?: {
     mediaFlowEnabled: boolean;
     proxyUrl: string;

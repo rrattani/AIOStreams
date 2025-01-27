@@ -1,10 +1,8 @@
-import { AddonDetail, ParsedNameData, StreamRequest } from '@aiostreams/types';
-import { parseFilename, extractSizeInBytes } from '@aiostreams/parser';
+import { AddonDetail, StreamRequest } from '@aiostreams/types';
 import { ParsedStream, Stream, Config } from '@aiostreams/types';
 import { BaseWrapper } from './base';
-import { addonDetails, serviceDetails } from '@aiostreams/utils';
+import { addonDetails } from '@aiostreams/utils';
 import { Settings } from '@aiostreams/utils';
-import { emojiToLanguage } from '@aiostreams/formatters';
 
 export class Debridio extends BaseWrapper {
   constructor(
@@ -29,66 +27,16 @@ export class Debridio extends BaseWrapper {
   }
 
   protected parseStream(stream: Stream): ParsedStream {
-    const [filename, metaString, languageString] =
-      stream.title?.split('\n') || [];
+    const superParsedStream = super.parseStream(stream);
 
-    const parsedFilename: ParsedNameData = parseFilename(
-      filename || stream.title || ''
-    );
-
-    const sizeInBytes = stream.behaviorHints?.videoSize
-      ? stream.behaviorHints.videoSize
-      : metaString
-        ? extractSizeInBytes(metaString, 1024)
-        : undefined;
-
-    const debrid = this.parseServiceData(
-      stream.name?.split('\n')?.[0] || ''
-    ) || {
-      id: 'easydebrid',
-      cached: false,
-    };
-    const seedersMatch = RegExp(/👤 (\d+)/).exec(stream.title!);
-    const seeders = seedersMatch ? parseInt(seedersMatch[1]) : undefined;
-
-    const indexerMatch = RegExp(/⚙️ (.+)/).exec(
-      stream.title?.split('\n')[1] || ''
-    );
-    const indexer = indexerMatch ? indexerMatch[1] : undefined;
-
-    if (languageString) {
-      const languages = languageString.replace('🌐', '').split('|');
-      languages.forEach((language, index) => {
-        let convertedLanguage = language.trim();
-        if (convertedLanguage === 'Multi Audio') {
-          convertedLanguage = 'Multi';
-        }
-
-        convertedLanguage =
-          emojiToLanguage(convertedLanguage) || convertedLanguage;
-        convertedLanguage = convertedLanguage.replace(/\b\w/g, (char) =>
-          char.toUpperCase()
-        );
-        if (!parsedFilename.languages.includes(convertedLanguage)) {
-          parsedFilename.languages.push(convertedLanguage);
-        }
-      });
+    if (!superParsedStream.provider) {
+      superParsedStream.provider = {
+        id: 'easydebrid',
+        cached: false,
+      };
     }
 
-    const parsedStream: ParsedStream = this.createParsedResult(
-      parsedFilename,
-      stream,
-      filename,
-      sizeInBytes,
-      debrid,
-      seeders,
-      undefined,
-      indexer,
-      undefined,
-      undefined,
-      this.extractInfoHash(stream.url || '')
-    );
-    return parsedStream;
+    return superParsedStream;
   }
 }
 

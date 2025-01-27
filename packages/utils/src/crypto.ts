@@ -1,4 +1,9 @@
-import { randomBytes, createCipheriv, createDecipheriv } from 'crypto';
+import {
+  randomBytes,
+  createCipheriv,
+  createDecipheriv,
+  createHash,
+} from 'crypto';
 import { deflateSync, inflateSync } from 'zlib';
 import { Settings } from './settings';
 
@@ -77,4 +82,10 @@ export function parseAndDecryptString(data: string): string | null {
     );
     return null;
   }
+}
+
+export function getTextHash(text: string): string {
+  const hash = createHash('sha256');
+  hash.update(text);
+  return hash.digest('hex');
 }

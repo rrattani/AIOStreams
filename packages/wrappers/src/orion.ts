@@ -1,10 +1,8 @@
-import { AddonDetail, ParsedNameData, StreamRequest } from '@aiostreams/types';
-import { parseFilename, extractSizeInBytes } from '@aiostreams/parser';
+import { AddonDetail, StreamRequest } from '@aiostreams/types';
 import { ParsedStream, Stream, Config } from '@aiostreams/types';
 import { BaseWrapper } from './base';
-import { addonDetails, serviceDetails } from '@aiostreams/utils';
+import { addonDetails } from '@aiostreams/utils';
 import { Settings } from '@aiostreams/utils';
-import { emojiToLanguage } from '@aiostreams/formatters';
 
 // name, title, url
 export class OrionStremioAddon extends BaseWrapper {
@@ -31,44 +29,14 @@ export class OrionStremioAddon extends BaseWrapper {
   }
 
   protected parseStream(stream: Stream): ParsedStream {
+    const parsedStream: ParsedStream = super.parseStream(stream);
+    // handle error streams and join all lines into a single string
     const filename = stream.title
       ? stream.title.includes('ERROR')
         ? `Error: ${stream.title.split('\n')[1]} - ${stream.title.split('\n')[2]}`
         : stream.title.split('\n')[0]
       : stream.behaviorHints?.filename?.trim();
-
-    const parsedFilename: ParsedNameData = parseFilename(filename || '');
-    const sizeInBytes = stream.title
-      ? extractSizeInBytes(stream.title, 1024)
-      : 0;
-
-    const debrid = this.parseServiceData(stream.name?.split('\n')?.[1] || '');
-    if (debrid?.id && !debrid.cached) {
-      debrid.cached = true;
-    }
-    const seedersMatch = RegExp(/👤(\d+)/).exec(stream.title!);
-    const seeders = seedersMatch ? parseInt(seedersMatch[1]) : undefined;
-
-    const indexerMatch = RegExp(/☁️(.+)/).exec(
-      stream.title?.split('\n')[1] || ''
-    );
-    const indexer = indexerMatch ? indexerMatch[1] : undefined;
-
-    // TODO: orion returns 2 letter language codes, convert them to full names
-
-    const parsedStream: ParsedStream = this.createParsedResult(
-      parsedFilename,
-      stream,
-      filename,
-      sizeInBytes,
-      debrid,
-      seeders,
-      undefined,
-      indexer,
-      undefined,
-      undefined,
-      this.extractInfoHash(stream.url || '')
-    );
+    parsedStream.filename = filename;
     return parsedStream;
   }
 }

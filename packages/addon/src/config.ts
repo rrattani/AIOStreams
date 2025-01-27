@@ -337,6 +337,37 @@ export function validateConfig(config: Config): {
       );
     }
   }
+  if (
+    (config.excludeFilters?.length ?? 0) > Settings.MAX_KEYWORD_FILTERS ||
+    (config.strictIncludeFilters?.length ?? 0) > Settings.MAX_KEYWORD_FILTERS
+  ) {
+    return createResponse(
+      false,
+      'tooManyFilters',
+      `You can only have a maximum of ${Settings.MAX_KEYWORD_FILTERS} filters`
+    );
+  }
+
+  const filters = [
+    ...(config.excludeFilters || []),
+    ...(config.strictIncludeFilters || []),
+  ];
+  filters.forEach((filter) => {
+    if (filter.length > 20) {
+      return createResponse(
+        false,
+        'invalidFilter',
+        'One of your filters is too long'
+      );
+    }
+    if (!filter) {
+      return createResponse(
+        false,
+        'invalidFilter',
+        'Filters must not be empty'
+      );
+    }
+  });
 
   return createResponse(true, null, null);
 }
