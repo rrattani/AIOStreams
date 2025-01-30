@@ -40,7 +40,7 @@ export class Settings {
     'https://ea627ddf0ee7-easynews.baby-beamup.club/';
   public static readonly EASYNEWS_PLUS_URL =
     process.env.EASYNEWS_PLUS_URL ??
-    'https://b89262c192b0-stremio-easynews-addon.baby-beamup.club/';
+    'https://easynews-plus-streamio-addon.sarmaar.workers.dev/';
   public static readonly DEBRIDIO_URL =
     process.env.DEBRIDIO_URL ?? 'https://debridio.adobotec.com/';
   public static readonly ADDON_PROXY = process.env.ADDON_PROXY ?? '';
