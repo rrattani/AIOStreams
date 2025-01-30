@@ -51,11 +51,14 @@ export async function getMediafusionStreams(
   },
   streamRequest: StreamRequest,
   addonId: string
-): Promise<ParsedStream[]> {
+): Promise<{
+  addonStreams: ParsedStream[];
+  addonErrors: string[];
+}> {
   const supportedServices: string[] =
     addonDetails.find((addon: AddonDetail) => addon.id === 'mediafusion')
       ?.supportedServices || [];
-  const parsedStreams: ParsedStream[] = [];
+  const addonStreams: ParsedStream[] = [];
   const indexerTimeout = mediafusionOptions.indexerTimeout
     ? parseInt(mediafusionOptions.indexerTimeout)
     : undefined;
@@ -70,7 +73,10 @@ export async function getMediafusionStreams(
       config,
       indexerTimeout
     );
-    return mediafusion.getParsedStreams(streamRequest);
+    return {
+      addonStreams: await mediafusion.getParsedStreams(streamRequest),
+      addonErrors: [],
+    };
   }
 
   // find all usable and enabled services
@@ -94,7 +100,10 @@ export async function getMediafusionStreams(
       config,
       indexerTimeout
     );
-    return mediafusion.getParsedStreams(streamRequest);
+    return {
+      addonStreams: await mediafusion.getParsedStreams(streamRequest),
+      addonErrors: [],
+    };
   }
 
   // otherwise, depending on the configuration, create multiple instances of mediafusion or use a single instance with the prioritised service
@@ -140,10 +149,14 @@ export async function getMediafusionStreams(
       indexerTimeout
     );
 
-    return mediafusion.getParsedStreams(streamRequest);
+    return {
+      addonStreams: await mediafusion.getParsedStreams(streamRequest),
+      addonErrors: [],
+    };
   }
 
   // if no prioritised service is provided, create a mediafusion instance for each service
+  const addonErrors: string[] = [];
   const servicesToUse = usableServices.filter((service) => service.enabled);
   if (servicesToUse.length < 1) {
     throw new Error(`No enabled services found for MediaFusion`);
@@ -167,10 +180,19 @@ export async function getMediafusionStreams(
     return mediafusion.getParsedStreams(streamRequest);
   });
 
-  const results = await Promise.all(promises);
-  results.forEach((streams) => parsedStreams.push(...streams));
+  const results = await Promise.allSettled(promises);
+  results.forEach((result) => {
+    if (result.status === 'fulfilled') {
+      addonStreams.push(...result.value);
+    } else {
+      addonErrors.push(result.reason.message);
+    }
+  });
 
-  return parsedStreams;
+  return {
+    addonStreams,
+    addonErrors,
+  };
 }
 
 const getMediaFusionConfig = (
@@ -231,6 +253,7 @@ const getMediaFusionConfig = (
       { key: 'created_at', direction: 'desc' },
     ],
     show_full_torrent_name: true,
+    show_language_country_flag: true,
     nudity_filter: nudityFilter,
     certification_filter: certificationFilter,
     language_sorting: [
@@ -277,6 +300,7 @@ const getMediaFusionConfig = (
     rpdb_config: null,
     live_search_streams: false,
     contribution_streams: false,
+    mdblist_config: null,
   };
 };
 

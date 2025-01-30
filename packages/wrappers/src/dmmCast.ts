@@ -66,7 +66,10 @@ export async function getDMMCastStreams(
   },
   streamRequest: StreamRequest,
   addonId: string
-): Promise<ParsedStream[]> {
+): Promise<{
+  addonStreams: ParsedStream[];
+  addonErrors: string[];
+}> {
   if (!dmmCastOptions.installationUrl) {
     throw new Error('DMM Cast installation URL is missing');
   } else if (
@@ -85,5 +88,8 @@ export async function getDMMCastStreams(
       ? parseInt(dmmCastOptions.indexerTimeout)
       : undefined
   );
-  return dmmCast.getParsedStreams(streamRequest);
+  return {
+    addonStreams: await dmmCast.getParsedStreams(streamRequest),
+    addonErrors: [],
+  };
 }

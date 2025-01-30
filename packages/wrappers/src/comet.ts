@@ -55,7 +55,10 @@ export async function getCometStreams(
   },
   streamRequest: StreamRequest,
   addonId: string
-): Promise<ParsedStream[]> {
+): Promise<{
+  addonStreams: ParsedStream[];
+  addonErrors: string[];
+}> {
   const supportedServices: string[] =
     addonDetails.find((addon: AddonDetail) => addon.id === 'comet')
       ?.supportedServices || [];
@@ -74,7 +77,10 @@ export async function getCometStreams(
       config,
       indexerTimeout
     );
-    return comet.getParsedStreams(streamRequest);
+    return {
+      addonStreams: await comet.getParsedStreams(streamRequest),
+      addonErrors: [],
+    };
   }
 
   // find all usable and enabled services
@@ -128,7 +134,10 @@ export async function getCometStreams(
       indexerTimeout
     );
 
-    return comet.getParsedStreams(streamRequest);
+    return {
+      addonStreams: await comet.getParsedStreams(streamRequest),
+      addonErrors: [],
+    };
   }
 
   // if no prioritised service is provided, create a comet instance for each service
@@ -136,7 +145,7 @@ export async function getCometStreams(
   if (servicesToUse.length < 1) {
     throw new Error('No supported service(s) enabled');
   }
-
+  const errorMessages: string[] = [];
   const streamPromises = servicesToUse.map(async (service) => {
     const cometConfig = getCometConfig(service.id, service.credentials.apiKey);
     const configString = Buffer.from(JSON.stringify(cometConfig)).toString(
@@ -153,8 +162,14 @@ export async function getCometStreams(
     return comet.getParsedStreams(streamRequest);
   });
 
-  const streamsArray = await Promise.all(streamPromises);
-  streamsArray.forEach((streams) => parsedStreams.push(...streams));
+  const results = await Promise.allSettled(streamPromises);
+  results.forEach((result) => {
+    if (result.status === 'fulfilled') {
+      parsedStreams.push(...result.value);
+    } else {
+      errorMessages.push(result.reason.message);
+    }
+  });
 
-  return parsedStreams;
+  return { addonStreams: parsedStreams, addonErrors: errorMessages };
 }

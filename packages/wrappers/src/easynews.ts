@@ -45,7 +45,10 @@ export async function getEasynewsStreams(
   },
   streamRequest: StreamRequest,
   addonId: string
-): Promise<ParsedStream[]> {
+): Promise<{
+  addonStreams: ParsedStream[];
+  addonErrors: string[];
+}> {
   // look for the 'easynews' id in the services array and destructure the username and password
   // if we cant find it, throw an error
   const easynewsService = serviceDetails.find(
@@ -81,5 +84,8 @@ export async function getEasynewsStreams(
   );
 
   const streams = await easynews.getParsedStreams(streamRequest);
-  return streams;
+  return {
+    addonStreams: streams,
+    addonErrors: [],
+  };
 }

@@ -6,13 +6,7 @@ import {
   Config,
 } from '@aiostreams/types';
 import { parseFilename } from '@aiostreams/parser';
-import {
-  getMediaFlowConfig,
-  getMediaFlowPublicIp,
-  getTextHash,
-  serviceDetails,
-  Settings,
-} from '@aiostreams/utils';
+import { getTextHash, serviceDetails, Settings } from '@aiostreams/utils';
 // import { fetch as uFetch, ProxyAgent } from 'undici';
 import { emojiToLanguage, codeToLanguage } from '@aiostreams/formatters';
 
@@ -64,78 +58,100 @@ export class BaseWrapper {
     );
   }
 
-  protected async getStreams(streamRequest: StreamRequest): Promise<Stream[]> {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => {
-      controller.abort();
-    }, this.indexerTimeout);
+  private shouldProxyRequest(url: string): boolean {
+    let useProxy: boolean = false;
+    let hostname: string;
+    try {
+      hostname = new URL(url).hostname;
+    } catch (e) {
+      console.error(`|ERR| utils > shouldProxyRequest Error parsing URL`);
+      return false;
+    }
+    if (!Settings.ADDON_PROXY) {
+      useProxy = false;
+    } else if (Settings.ADDON_PROXY_CONFIG || Settings.ADDON_PROXY) {
+      useProxy = true;
+      for (const rule of Settings.ADDON_PROXY_CONFIG?.split(',')) {
+        const [ruleHost, enabled] = rule.split(':');
+        if (['true', 'false'].includes(enabled) === false) {
+          console.error(
+            `|ERR| utils > shouldProxyRequest > Invalid rule: ${rule}`
+          );
+          continue;
+        }
+        if (ruleHost === '*') {
+          useProxy = !(enabled === 'false');
+        } else if (ruleHost.startsWith('*')) {
+          if (hostname.endsWith(ruleHost.slice(1))) {
+            useProxy = !(enabled === 'false');
+          }
+        }
+        if (hostname === ruleHost) {
+          useProxy = !(enabled === 'false');
+        }
+      }
+    }
+    return useProxy;
+  }
 
+  protected makeRequest(url: string): Promise<any> {
+    const headers = new Headers();
+    const userIp = this.userConfig.requestingIp;
+    if (userIp) {
+      headers.set('X-Client-IP', userIp);
+      headers.set('X-Forwarded-For', userIp);
+      headers.set('X-Real-IP', userIp);
+    }
+
+    let urlObj = new URL(url);
+    let sanitisedUrl = `${urlObj.protocol}//${urlObj.hostname}/${urlObj.pathname
+      .split('/')
+      .slice(1, -3)
+      .map((part) => (Settings.LOG_SENSITIVE_INFO ? part : '<redacted>'))
+      .join('/')}/${urlObj.pathname.split('/').slice(-3).join('/')}`;
+    let useProxy = this.shouldProxyRequest(url);
+
+    console.log(
+      `|DBG| wrappers > base > ${this.addonName}: Making a ${useProxy ? 'proxied' : 'direct'} request to ${sanitisedUrl} with user IP ${
+        userIp
+          ? Settings.LOG_SENSITIVE_INFO
+            ? userIp
+            : '<redacted>'
+          : 'not set'
+      }`
+    );
+
+    let response = useProxy
+      ? uFetch(url, {
+          dispatcher: new ProxyAgent(Settings.ADDON_PROXY),
+          method: 'GET',
+          headers: headers,
+          signal: AbortSignal.timeout(this.indexerTimeout),
+        })
+      : fetch(url, {
+          method: 'GET',
+          headers: headers,
+          signal: AbortSignal.timeout(this.indexerTimeout),
+        });
+
+    return response;
+  }
+  protected async getStreams(streamRequest: StreamRequest): Promise<Stream[]> {
     const url = this.getStreamUrl(streamRequest);
     const cache = this.userConfig.instanceCache;
     const requestCacheKey = getTextHash(url);
     const cachedStreams = cache ? cache.get(requestCacheKey) : undefined;
-    const sanitisedUrl =
-      new URL(url).hostname + '/****/' + new URL(url).pathname.split('/').pop();
     if (cachedStreams) {
       console.debug(
-        `|DBG| wrappers > base > ${this.addonName}: Returning cached streams for ${sanitisedUrl}`
+        `|DBG| wrappers > base > ${this.addonName}: Returning cached streams for`
       );
       return cachedStreams;
     }
     try {
-      // Add requesting IP to headers
-      const headers = new Headers();
-      const userIp = this.userConfig.requestingIp;
-      if (userIp) {
-        if (Settings.LOG_SENSITIVE_INFO) {
-          console.debug(
-            `|DBG| wrappers > base > ${this.addonName}: Using IP: ${userIp}`
-          );
-        }
-        headers.set('X-Forwarded-For', userIp);
-        headers.set('X-Real-IP', userIp);
-      }
-      console.log(
-        `|INF| wrappers > base > ${this.addonName}: Fetching with timeout ${this.indexerTimeout}ms from ${sanitisedUrl}`
-      );
-      let response;
-      try {
-        response = await fetch(url, {
-          method: 'GET',
-          headers: headers,
-          signal: controller.signal,
-        });
-        if (!response.ok) {
-          let message = await response.text();
-          throw new Error(
-            `${response.status} - ${response.statusText}: ${message}`
-          );
-        }
-      } catch (error: any) {
-        /*
-        if (!Settings.ADDON_PROXY) {
-          throw error;
-        }
-        const dispatcher = new ProxyAgent(Settings.ADDON_PROXY);
-        console.error(
-          `|ERR| wrappers > base > ${this.addonName}: Got error: ${error.message} when fetching from ${sanitisedUrl}, trying with proxy instead`
-        );
-        response = await uFetch(url, {
-          dispatcher,
-          method: 'GET',
-          headers: headers,
-          signal: controller.signal,
-        });
-        */
-        throw error;
-      }
-
-      clearTimeout(timeout);
-
+      const response = await this.makeRequest(url);
       if (!response.ok) {
-        let message = await response.text();
         throw new Error(
-          `${response.status} - ${response.statusText}: ${message}`
+          `${this.addonName} failed to respond with status ${response.status}`
         );
       }
 
@@ -152,10 +168,9 @@ export class BaseWrapper {
       }
       return results.streams;
     } catch (error: any) {
-      clearTimeout(timeout);
       let message = error.message;
-      if (error.name === 'AbortError') {
-        message = `${this.addonName} failed to respond within ${this.indexerTimeout}ms`;
+      if (error.name === 'TimeoutError') {
+        message = `The request to ${this.addonName} was aborted after ${this.indexerTimeout}ms`;
       }
       return Promise.reject(new Error(message));
     }

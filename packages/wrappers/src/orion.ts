@@ -1,4 +1,4 @@
-import { AddonDetail, StreamRequest } from '@aiostreams/types';
+import { AddonDetail, ErrorStream, StreamRequest } from '@aiostreams/types';
 import { ParsedStream, Stream, Config } from '@aiostreams/types';
 import { BaseWrapper } from './base';
 import { addonDetails } from '@aiostreams/utils';
@@ -80,7 +80,7 @@ export async function getOrionStreams(
   },
   streamRequest: StreamRequest,
   addonId: string
-): Promise<ParsedStream[]> {
+): Promise<{ addonStreams: ParsedStream[]; addonErrors: string[] }> {
   const orionServiceConfig = config.services.find(
     (service) => service.id === 'orion'
   );
@@ -110,7 +110,8 @@ export async function getOrionStreams(
       config,
       indexerTimeout
     );
-    return orion.getParsedStreams(streamRequest);
+    const streams = await orion.getParsedStreams(streamRequest);
+    return { addonStreams: streams, addonErrors: [] };
   }
 
   // find all usable services
@@ -134,7 +135,10 @@ export async function getOrionStreams(
       config,
       indexerTimeout
     );
-    return await orion.getParsedStreams(streamRequest);
+    return {
+      addonStreams: await orion.getParsedStreams(streamRequest),
+      addonErrors: [],
+    };
   }
 
   // otherwise, pass all the services to orion
@@ -156,5 +160,8 @@ export async function getOrionStreams(
     config,
     indexerTimeout
   );
-  return await orion.getParsedStreams(streamRequest);
+  return {
+    addonStreams: await orion.getParsedStreams(streamRequest),
+    addonErrors: [],
+  };
 }

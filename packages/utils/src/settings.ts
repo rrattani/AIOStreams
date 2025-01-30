@@ -18,6 +18,10 @@ export class Settings {
   public static readonly CUSTOM_CONFIGS = process.env.CUSTOM_CONFIGS || '';
   public static readonly DISABLE_CUSTOM_CONFIG_GENERATOR_ROUTE =
     process.env.DISABLE_CUSTOM_CONFIG_GENERATOR_ROUTE === 'true';
+  public static readonly DETERMINISTIC_ADDON_ID = process.env
+    .DETERMINISTIC_ADDON_ID
+    ? process.env.DETERMINISTIC_ADDON_ID === 'true'
+    : false;
   public static readonly COMET_URL =
     process.env.COMET_URL ?? 'https://comet.elfhosted.com/';
   public static readonly MEDIAFUSION_URL =
@@ -44,6 +48,9 @@ export class Settings {
   public static readonly DEBRIDIO_URL =
     process.env.DEBRIDIO_URL ?? 'https://debridio.adobotec.com/';
   public static readonly ADDON_PROXY = process.env.ADDON_PROXY ?? '';
+  public static readonly ADDON_PROXY_CONFIG = process.env.ADDON_PROXY_CONFIG
+    ? process.env.ADDON_PROXY_CONFIG
+    : '';
   public static readonly DEFAULT_MEDIAFLOW_URL =
     process.env.DEFAULT_MEDIAFLOW_URL ?? '';
   public static readonly DEFAULT_MEDIAFLOW_API_PASSWORD =

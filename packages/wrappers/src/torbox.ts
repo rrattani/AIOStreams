@@ -157,7 +157,7 @@ export async function getTorboxStreams(
   },
   streamRequest: StreamRequest,
   addonId: string
-): Promise<ParsedStream[]> {
+): Promise<{ addonStreams: ParsedStream[]; addonErrors: string[] }> {
   const torboxService = config.services.find(
     (service) => service.id === 'torbox'
   );
@@ -179,5 +179,6 @@ export async function getTorboxStreams(
       ? parseInt(torboxOptions.indexerTimeout)
       : undefined
   );
-  return await torbox.getParsedStreams(streamRequest);
+  const streams = await torbox.getParsedStreams(streamRequest);
+  return { addonStreams: streams, addonErrors: [] };
 }

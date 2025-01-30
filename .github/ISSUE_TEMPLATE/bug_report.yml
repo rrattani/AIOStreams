@@ -21,10 +21,7 @@ body:
       options:
         - Public ElfHosted Instance
         - Private ElfHosted Instance
-        - Render
-        - Hugging Face
-        - Cloudflare Workers
-        - Other
+        - Other, specify at description
     validations:
       required: true
   - type: input

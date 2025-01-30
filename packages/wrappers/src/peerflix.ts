@@ -45,11 +45,11 @@ export async function getPeerflixStreams(
   },
   streamRequest: StreamRequest,
   addonId: string
-): Promise<ParsedStream[]> {
+): Promise<{ addonStreams: ParsedStream[]; addonErrors: string[] }> {
   const supportedServices: string[] =
     addonDetails.find((addon: AddonDetail) => addon.id === 'peerflix')
       ?.supportedServices || [];
-  const parsedStreams: ParsedStream[] = [];
+  const addonStreams: ParsedStream[] = [];
   const indexerTimeout = peerflixOptions.indexerTimeout
     ? parseInt(peerflixOptions.indexerTimeout)
     : undefined;
@@ -64,7 +64,8 @@ export async function getPeerflixStreams(
       config,
       indexerTimeout
     );
-    return peerflix.getParsedStreams(streamRequest);
+    const streams = await peerflix.getParsedStreams(streamRequest);
+    return { addonStreams: streams, addonErrors: [] };
   }
 
   // find all usable services
@@ -85,11 +86,12 @@ export async function getPeerflixStreams(
       config,
       indexerTimeout
     );
-    return await peerflix.getParsedStreams(streamRequest);
+    const streams = await peerflix.getParsedStreams(streamRequest);
+    return { addonStreams: streams, addonErrors: [] };
   }
 
   // otherwise, depending on the configuration, create multiple instances of peerflix or use a single instance with all services
-
+  const addonErrors: string[] = [];
   const getServicePair = (
     serviceId: string,
     credentials: { [key: string]: string }
@@ -124,9 +126,15 @@ export async function getPeerflixStreams(
       );
       return await peerflix.getParsedStreams(streamRequest);
     });
-    const results = await Promise.all(promises);
-    results.forEach((streams) => parsedStreams.push(...streams));
-    return parsedStreams;
+    const results = await Promise.allSettled(promises);
+    for (const result of results) {
+      if (result.status === 'fulfilled') {
+        addonStreams.push(...result.value);
+      } else {
+        addonErrors.push(result.reason.message);
+      }
+    }
+    return { addonStreams, addonErrors };
   } else {
     let configPairs = [];
     for (const service of usableServices) {
@@ -147,6 +155,7 @@ export async function getPeerflixStreams(
       config,
       indexerTimeout
     );
-    return await peerflix.getParsedStreams(streamRequest);
+    const streams = await peerflix.getParsedStreams(streamRequest);
+    return { addonStreams: streams, addonErrors: [] };
   }
 }

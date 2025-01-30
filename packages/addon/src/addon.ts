@@ -44,6 +44,9 @@ export class AIOStreams {
 
   private async getRequestingIp() {
     let userIp = this.config.requestingIp;
+    if (userIp === '::1') {
+      userIp = undefined;
+    }
     const mediaFlowConfig = getMediaFlowConfig(this.config);
     if (mediaFlowConfig.mediaFlowEnabled) {
       const mediaFlowIp = await getMediaFlowPublicIp(
@@ -87,7 +90,7 @@ export class AIOStreams {
         ];
       }
     }
-    const { errorStreams, parsedStreams } =
+    const { parsedStreams, errorStreams } =
       await this.getParsedStreams(streamRequest);
 
     console.log(
@@ -860,7 +863,7 @@ export class AIOStreams {
 
   private async getParsedStreams(
     streamRequest: StreamRequest
-  ): Promise<{ errorStreams: ErrorStream[]; parsedStreams: ParsedStream[] }> {
+  ): Promise<{ parsedStreams: ParsedStream[]; errorStreams: ErrorStream[] }> {
     const parsedStreams: ParsedStream[] = [];
     const errorStreams: ErrorStream[] = [];
     const addonPromises = this.config.addons.map(async (addon) => {
@@ -872,14 +875,20 @@ export class AIOStreams {
       const addonId = `${addon.id}-${JSON.stringify(addon.options)}`;
       try {
         const startTime = new Date().getTime();
-        const streams = await this.getStreamsFromAddon(
+        const { addonStreams, addonErrors } = await this.getStreamsFromAddon(
           addon,
           addonId,
           streamRequest
         );
-        parsedStreams.push(...streams);
+        parsedStreams.push(...addonStreams);
+        errorStreams.push(
+          ...[...new Set(addonErrors)].map((error) => ({
+            error,
+            addon: { id: addonId, name: addonName },
+          }))
+        );
         console.log(
-          `|INF| addon > getParsedStreams: Got ${streams.length} streams from addon ${addonName} in ${getTimeTakenSincePoint(startTime)}`
+          `|INF| addon > getParsedStreams: Got ${parsedStreams.length} streams from addon ${addonName} in ${getTimeTakenSincePoint(startTime)}`
         );
       } catch (error: any) {
         console.error(
@@ -896,14 +905,14 @@ export class AIOStreams {
     });
 
     await Promise.all(addonPromises);
-    return { errorStreams, parsedStreams };
+    return { parsedStreams, errorStreams };
   }
 
   private async getStreamsFromAddon(
     addon: Config['addons'][0],
     addonId: string,
     streamRequest: StreamRequest
-  ): Promise<ParsedStream[]> {
+  ): Promise<{ addonStreams: ParsedStream[]; addonErrors: string[] }> {
     switch (addon.id) {
       case 'torbox': {
         return await getTorboxStreams(
@@ -1006,7 +1015,10 @@ export class AIOStreams {
             ? parseInt(addon.options.indexerTimeout)
             : Settings.DEFAULT_GDRIVE_TIMEOUT
         );
-        return await wrapper.getParsedStreams(streamRequest);
+        return {
+          addonStreams: await wrapper.getParsedStreams(streamRequest),
+          addonErrors: [],
+        };
       }
       default: {
         if (!addon.options.url) {
@@ -1023,7 +1035,10 @@ export class AIOStreams {
             ? parseInt(addon.options.indexerTimeout)
             : undefined
         );
-        return await wrapper.getParsedStreams(streamRequest);
+        return {
+          addonStreams: await wrapper.getParsedStreams(streamRequest),
+          addonErrors: [],
+        };
       }
     }
   }

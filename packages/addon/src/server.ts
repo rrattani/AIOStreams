@@ -115,11 +115,36 @@ app.get('/:config/configure', (req, res) => {
 });
 
 app.get('/manifest.json', (req, res) => {
-  res.status(200).json(manifest(false));
+  res.status(200).json(manifest());
 });
 
 app.get('/:config/manifest.json', (req, res) => {
-  res.status(200).json(manifest(true));
+  const config = req.params.config;
+  let configJson: Config;
+  try {
+    configJson = extractJsonConfig(config);
+    console.log(`|DBG| server > Extracted config for manifest request`);
+    configJson = decryptEncryptedInfoFromConfig(configJson);
+    if (Settings.LOG_SENSITIVE_INFO) {
+      console.log(`|DBG| server > Final config: ${JSON.stringify(configJson)}`);
+    }
+    console.log(
+      `|DBG| server > Successfully removed or decrypted sensitive info`
+    );
+    const { valid, errorMessage } = validateConfig(configJson);
+    if (!valid) {
+      console.error(
+        `|ERR| server > Received invalid config for manifest request: ${errorMessage}`
+      );
+      res.status(400).json({ error: 'Invalid config', message: errorMessage });
+      return;
+    }
+  } catch (error: any) {
+    console.error(`|ERR| server > Failed to extract config: ${error.message}`);
+    res.status(400).json({ error: 'Invalid config' });
+    return;
+  }
+  res.status(200).json(manifest(configJson));
 });
 
 // Route for /stream

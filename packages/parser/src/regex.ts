@@ -54,7 +54,7 @@ export const PARSE_REGEX = {
     7.1: createRegex(
       'd(olby)?[ .\\-_]?d(igital)?[ .\\-_]?(p(lus)?|\\+)?[ .\\-_]?7[ .\\-_]?1'
     ),
-    AAC: createRegex('q?aac'),
+    AAC: createRegex('q?aac(?:[ .\\-_]?2)?'),
     FLAC: createRegex('flac(?:[ .\\-_]?(lossless|2\\.0|x[2-4]))?'),
   },
   encodes: {
@@ -68,7 +68,9 @@ export const PARSE_REGEX = {
   },
   languages: {
     Multi: createRegex('multi|multi[ .\\-_]?audio'),
-    'Dual Audio': createRegex('dual[ .\\-_]?audio'),
+    'Dual Audio': createRegex(
+      'dual[ .\\-_]?(audio|lang(uage)?|flac|ac3|aac2?)'
+    ),
     Dubbed: createRegex('dub(bed)?'),
     English: createRegex('english|eng'),
     Japanese: createRegex('japanese|jap'),

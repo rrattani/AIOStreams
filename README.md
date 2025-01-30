@@ -7,21 +7,16 @@
 - [FAQ](#faq)
   - [How does it work?](#how-does-it-work)
 - [Usage](#usage)
-  - [Public Instance](#public-instance)
-  - [Personal Instance](#deploying-your-own-instance)
-    - [Hugging Face](#hugging-face)
-    - [Cloudflare Workers](#cloudflare-workers)
-    - [Render](#render)
-    - [ElfHosted](#elfhosted-paid)
-    - [Heroku](#heroku-paid)
-  - [Self Hosting](#self-hosting)
-    - [Docker](#docker)
-    - [From Source](#from-source)
+  - [Public Instace](#public-instance)
+  - [Cloudflare Workers](#cloudflare-workers)
+  - [ElfHosted](#elfhosted-paid)
+  - [Heroku](#heroku-paid)
+  - [VPS](#vps)
+  - [Docker](#docker)
+  - [From Source](#from-source)
 - [Configuring](#configuring)
   - [Environment Variables](#environment-variables)
   - [Cloudflare Workers](#cloudflare-workers-1)
-  - [Render](#render-1)
-  - [Hugging Face](#hugging-face-1)
   - [Local](#local)
 - [Development](#development)
 - [Credits](#credits)
@@ -123,107 +118,15 @@ Read my [Stremio guide](https://guides.viren070.me/stremio).
 ### Public Instance
 
 > [!IMPORTANT]
-> Torrentio is disabled on the public instance!
+> Torrentio is disabled on the public instance! However, most users don't need Torrentio and MediaFusion also provides streams from Torrentio, so try the public instance first, you may not need to self-host. 
 
 [ElfHosted](https://elfhosted.com/) have been kind enough to host a [community instance of AIOStreams](https://aiostreams.elfhosted.com/configure).
 
 This community instance does have a ratelimit in place, but it is unlikely you will reach it. It also avoids the ratelimits of ElfHosted addons like Comet and MediaFusion as AIOStreams' requests to these addons are routed internally.
 However, other non-ElfHosted addons may rate limit the community instance.
 
-### Deploying your own instance
 
-Rather than hosting the addon locally, you can make use of some services to deploy the addon for you. This would be your own instance. However, if anyone has the URL to it, they can also use it.
-
-I would recommend using Hugging Face over the other options, it is fast and is still easy to set up.
-
-#### Hugging Face
-
-This addon can be deployed as a [Hugging Face](https://huggingface.co/) space.
-
-> [!IMPORTANT]
-> Hugging Face is centered around AI and as this addon is not related to AI, they may have begun blocking deployments of this addon which cause it to get stuck on building.
->
-> To workaround this, you can create a fork of this repository with a random name (not AIOStreams), and after step 4, before clicking `Commit to main`, simply edit the file where it says Viren070/AIOStreams to use your forked repository instead.
-> Note: To update your instance with this workaround, you need to sync your fork on GitHub, and **then** do a `Factory Rebuild`
-
-
-
-1. Create a Hugging Face account and on the [home page](https://huggingface.co) create a new space.
-
-![Screenshot 2024-12-29 133648](https://github.com/user-attachments/assets/9d20a1ac-8eff-4748-8ed7-29da174bd438)
-
-2. In the 'Create a space' menu, choose 'Docker' as the `Space SDK` and 'Blank' for the docker template.
-
-![image](https://github.com/user-attachments/assets/99dc4aed-9331-4bde-a500-2fa1b9dac572)
-
-- Ensure the space is set to `Public`
-- The `Space name` can be anything.
-
-3. After clicking 'Create Space', you should be taken to your space. Scroll down to 'Create your dockerfile', and click the link contained in the hint.
-
-![image](https://github.com/user-attachments/assets/8020ca91-abbf-4077-9379-1e0b693444a0)
-
-4. Copy and paste the following Dockerfile into the text box. Do not use the Dockerfile in this repository. Make sure to use the one below
-<details>
-<summary>Dockerfile - Click to expand</summary>
-<pre><code>
-FROM node:22-alpine AS builder
-WORKDIR /build
-RUN apk add --no-cache git && \
-git clone https://github.com/Viren070/AIOStreams.git . && \
-apk del git
-
-RUN npm install
-
-RUN npm run build
-
-RUN npm --workspaces prune --omit=dev
-
-FROM node:22-alpine AS final
-
-WORKDIR /app
-
-COPY --from=builder /build/package\*.json /build/LICENSE ./
-
-COPY --from=builder /build/packages/addon/package.*json ./packages/addon/
-COPY --from=builder /build/packages/frontend/package.*json ./packages/frontend/
-COPY --from=builder /build/packages/formatters/package.*json ./packages/formatters/
-COPY --from=builder /build/packages/parser/package.*json ./packages/parser/
-COPY --from=builder /build/packages/types/package.*json ./packages/types/
-COPY --from=builder /build/packages/wrappers/package.*json ./packages/wrappers/
-COPY --from=builder /build/packages/utils/package.\*json ./packages/utils/
-
-COPY --from=builder /build/packages/addon/dist ./packages/addon/dist
-COPY --from=builder /build/packages/frontend/out ./packages/frontend/out
-COPY --from=builder /build/packages/formatters/dist ./packages/formatters/dist
-COPY --from=builder /build/packages/parser/dist ./packages/parser/dist
-COPY --from=builder /build/packages/types/dist ./packages/types/dist
-COPY --from=builder /build/packages/wrappers/dist ./packages/wrappers/dist
-COPY --from=builder /build/packages/utils/dist ./packages/utils/dist
-
-COPY --from=builder /build/node_modules ./node_modules
-
-EXPOSE 7860
-
-ENV PORT=7860
-
-ENTRYPOINT ["npm", "run", "start:addon"]
-</code></pre>
-
-</details>
-
-5. Click `Commit new file to main`
-
-6. Your addon will be hosted at {username}-{space-name}.hf.space. You can also find a direct URL to it by clicking the 3 dots > Embed this space > Direct URL > Copy
-
->[!WARNING]
-> The build process generally takes around 5 minutes. However, it can sometimes get stuck sometimes or fail. In this case, go to `Settings`, and click `Factory Rebuild`. If it fails after factory rebuilding more than 3 times, you can create an issue.
-
-##### Updating
-
-To update the addon, you can simply go to the `Settings` tab and click `Factory rebuild`. This will rebuild the addon with the latest changes.
-
-#### Cloudflare Workers
+### Cloudflare Workers
 
 This addon can be deployed as a [Cloudflare Worker](https://workers.cloudflare.com/).
 
@@ -254,7 +157,7 @@ There are 2 methods to do this. Method 2 requires you to have Git and Node.js in
        npm run deploy:cloudflare-worker
        ```
 7. Click `Connect`
-8. Trigger a redeployment by going to the `Deployments` tab, clicking `Deploy version`, and `Deploy`
+8. Trigger a redeployment by editing the README file at your fork (you can just add a letter and click commit changes)
 9. You can find the URL for your cloudflare worker by clicking `View version` at the `Deployments` tab under the `Active deployments` section
 
 If you get an error about the `node:sqlite` module, follow [these instructions](https://github.com/Viren070/AIOStreams/issues/32#issuecomment-2602643959), editing the code at your forked GitHub repository. 
@@ -278,7 +181,7 @@ npm run deploy:cloudflare-worker
 
 If you get an error about the `node:sqlite` module, follow [these instructions](https://github.com/Viren070/AIOStreams/issues/32#issuecomment-2602643959)
 
-##### Updating
+#### Updating
 
 **Method 1**
 
@@ -295,45 +198,32 @@ npm run build
 npm run deploy:cloudflare-worker
 ```
 
-#### Render
-
-https://render.com/
-
-> [!WARNING]
-> Free instances 'spin down' after 15 minutes of inactivity. In this suspended state, it can take around a minute to start back up again when you make a request to it.
-
-> [!TIP]
-> Use a service (like [cron-job.org](https://cron-job.org/en/) or [UptimeRobot](https://uptimerobot.com/)) to automatically ping the URL of your instance + /health to keep it alive (e.g. if your instance was at `https://aiostreams.onrender.com`, create a job to ping `https://aiostreams.onrender.com/health` every 10 minutes) 
-
-1. Deploy a new web service
-2. Select `Public Git Repository` as the source
-3. Enter `https://github.com/Viren070/AIOStreams`
-4. Deploy
-
-
-##### Updating
-
-When you deploy with Render, it automatically builds the addon every time a commit is pushed to this repository. You can also manually trigger a build by clicking the `Deploy` button.
-
-It is recommend to disable the `Auto Deploy` feature as the latest changes may not be stable. You can do this by going to the `Settings` tab and scrolling down to the `Auto Deploy` setting near the bottom of the `Build & Deploy` section.
-
-#### ElfHosted (paid)
+### ElfHosted (paid)
 
 > [!NOTE] 
 > Use the link below to support me, 33% of your AIOStreams subscription will go to me ❤️ 
 
 AIOStreams is available as a [paid product on ElfHosted](https://store.elfhosted.com/product/aiostreams/elf/viren070/). This offers you a no-hassle experience where you can expect things to "just work". 
 
-#### Heroku (paid) 
+### Heroku (paid) 
 
 > [!TIP]
 > Heroku have a [student offer](https://www.heroku.com/github-students/) which gives you $13 worth of credit each month to spend for 24 months. 
 
 To deploy AIOStreams on [Heroku](https://heroku.com/), you can fork this repository, and create a new app on the [Heroku Dashboard](https://dashboard.heroku.com/), using `GitHub` as the deployment method in the `Deploy` tab, and choosing the `Node.js` buildpack in the `Settings` tab. 
 
-### Self-Hosting
+### VPS
 
-#### Docker
+A VPS (Virtual Private Server) can be used to host many applications, not just AIOStreams. 
+
+You can use the Free tier on [Oracle](https://www.oracle.com/cloud/free/). You can also look at the following posts for some cheap providers: 
+
+- https://lowendbox.com/blog/1-vps-1-usd-vps-per-month/
+- https://lowendbox.com/blog/2-usd-vps-cheap-vps-under-2-month/
+
+You need a domain, and you can set AIOStreams up on your VPS by installing Docker and then using a [docker compose file](#docker-compose). 
+
+### Docker
 
 [Docker](https://docs.docker.com/get-docker/) is a quick and convenient way to run this. Official images are available at the [ghcr.io](https://github.com/Viren070/AIOStreams/pkgs/container/aiostreams) and [docker.io](https://hub.docker.com/r/viren070/aiostreams) registries
 
@@ -364,7 +254,21 @@ docker build -t aiostreams .
 docker run -p 8080:3000 aiostreams
 ```
 
-#### From source
+#### Docker Compose 
+
+Have a look at this post which contains a docker compose file with MediaFlow Proxy, and AIOStreams configured with Warp (to get around Torrentio blocks on some VPSs):
+ 
+- https://www.reddit.com/r/StremioAddons/comments/1icdnos/thinking_of_selfhosting_aiostreams_dont_bother/
+
+### Other
+
+This addon can be deployed using some free solutions, but these should not be considered permanent solutions and can stop working at any point. 
+
+- [Hugging Face](https://huggingface.co)
+- [Koyeb](https://koyeb.com/)
+- [Render](https://render.com)
+
+### From source
 
 You need Node.js and git installed. Node v22 and npm v10.9 were used in the development of this project. I can not guarantee earlier versions will work.
 
@@ -409,24 +313,6 @@ Below, you can find how to set environment variables for the different methods o
 ### Cloudflare Workers
 
 Unfortunately, it is not currently possible to set environment variables for this addon on a Cloudflare Worker. You will have to modify the code directly. You can look in `packages/utils/src/settings.ts` to change the default values.
-
-### Render
-
-You can set environment variables in the Render dashboard.
-
-1. Go to the [Render dashboard](https://dashboard.render.com/) and select the `AIOStreams` service.
-2. Click on the `Environment` tab under the `Manage` section.
-3. Click on the `Edit` button.
-4. Click `Add Environment Variable` and enter the name and value of the environment variable you want to set.
-5. Once you have added all the environment variables you want to set, click `Save, build, and deploy`.
-
-### Hugging Face
-
-1. Go to your Hugging Face space and click on the `Settings` tab.
-2. Scroll down to `Variables and Secrets` and click on `New secret`.
-   > [!WARNING]
-   > Ensure you are using `Secrets`, especially for `SECRET_KEY`. Variables are public and can be seen by anyone.
-3. Enter the name and value of the environment variable you want to set. The description is optional and can be left empty.
 
 ### Local
 

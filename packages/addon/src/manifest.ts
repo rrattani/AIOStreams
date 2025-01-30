@@ -1,10 +1,16 @@
+import { Config } from '@aiostreams/types';
 import { version, description } from '../package.json';
-import { Settings } from '@aiostreams/utils';
+import { getTextHash, Settings } from '@aiostreams/utils';
 
-const manifest = (configured: boolean) => {
+const manifest = (config?: Config) => {
+  let addonId = Settings.ADDON_ID;
+  if (config && Settings.DETERMINISTIC_ADDON_ID) {
+    addonId =
+      addonId += `.${getTextHash(JSON.stringify(config)).substring(0, 12)}`;
+  }
   return {
     name: Settings.ADDON_NAME,
-    id: Settings.ADDON_ID,
+    id: addonId,
     version: version,
     description: description,
     catalogs: [],
@@ -15,7 +21,7 @@ const manifest = (configured: boolean) => {
     types: ['movie', 'series'],
     behaviorHints: {
       configurable: true,
-      configurationRequired: configured ? false : true,
+      configurationRequired: config ? false : true,
     },
   };
 };
