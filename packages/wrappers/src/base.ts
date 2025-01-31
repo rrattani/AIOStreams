@@ -264,7 +264,7 @@ export class BaseWrapper {
   }
   protected parseStream(stream: { [key: string]: any }): ParseResult {
     // see if the stream is an error
-    const errorRegex = /invalid.+(account|apikey|token)/i;
+    const errorRegex = /invalid\s+\w+\s+(account|apikey|token)/i;
     if (
       errorRegex.test(stream.title || '') ||
       errorRegex.test(stream.description || '')
