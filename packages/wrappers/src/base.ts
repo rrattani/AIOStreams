@@ -86,23 +86,25 @@ export class BaseWrapper {
       useProxy = false;
     } else if (Settings.ADDON_PROXY_CONFIG || Settings.ADDON_PROXY) {
       useProxy = true;
-      for (const rule of Settings.ADDON_PROXY_CONFIG?.split(',')) {
-        const [ruleHost, enabled] = rule.split(':');
-        if (['true', 'false'].includes(enabled) === false) {
-          console.error(
-            `|ERR| utils > shouldProxyRequest > Invalid rule: ${rule}`
-          );
-          continue;
-        }
-        if (ruleHost === '*') {
-          useProxy = !(enabled === 'false');
-        } else if (ruleHost.startsWith('*')) {
-          if (hostname.endsWith(ruleHost.slice(1))) {
+      if (Settings.ADDON_PROXY_CONFIG) {
+        for (const rule of Settings.ADDON_PROXY_CONFIG.split(',')) {
+          const [ruleHost, enabled] = rule.split(':');
+          if (['true', 'false'].includes(enabled) === false) {
+            console.error(
+              `|ERR| utils > shouldProxyRequest > Invalid rule: ${rule}`
+            );
+            continue;
+          }
+          if (ruleHost === '*') {
+            useProxy = !(enabled === 'false');
+          } else if (ruleHost.startsWith('*')) {
+            if (hostname.endsWith(ruleHost.slice(1))) {
+              useProxy = !(enabled === 'false');
+            }
+          }
+          if (hostname === ruleHost) {
             useProxy = !(enabled === 'false');
           }
-        }
-        if (hostname === ruleHost) {
-          useProxy = !(enabled === 'false');
         }
       }
     }
