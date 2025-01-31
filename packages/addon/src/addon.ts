@@ -595,7 +595,9 @@ export class AIOStreams {
         }
         return mediaFlowStream;
       } catch (error) {
-        console.error(`Failed to create MediaFlow stream URL: ${error}`);
+        console.error(
+          `|ERR| addon > createStreamObject: Failed to create MediaFlow stream URL: ${error}`
+        );
         return null;
       }
     }
@@ -895,7 +897,13 @@ export class AIOStreams {
           `|ERR| addon > getParsedStreams: Failed to get streams from ${addonName}: ${error}`
         );
         errorStreams.push({
-          error: `${error.message.replace('-', '\n').replace(':', '\n')}`,
+          error: `${error.message
+            .replace('-', '\n')
+            .replace(':', '\n')
+            .split('\n')
+            .map((line: string) => line.trim())
+            .join('\n')
+            .trim()}`,
           addon: {
             id: addonId,
             name: addonName,
@@ -1064,13 +1072,13 @@ export class AIOStreams {
       console.log('==================');*/
       // Separate streams into categories
       const cachedStreams = groupedStreams.filter(
-        (stream) => stream.provider?.cached
+        (stream) => stream.provider?.cached || (!stream.provider && stream.url)
       );
       const uncachedStreams = groupedStreams.filter(
         (stream) => stream.provider && !stream.provider.cached
       );
       const noProviderStreams = groupedStreams.filter(
-        (stream) => !stream.provider
+        (stream) => !stream.provider && stream.torrent?.infoHash
       );
 
       // Select uncached streams by addon priority (one per provider)
