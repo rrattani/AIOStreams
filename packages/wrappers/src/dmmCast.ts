@@ -36,7 +36,6 @@ export class DMMCast extends BaseWrapper {
     // DMM Other - Filename can be split across multiple lines with 📦 {size} at last line
     // DMM Yours - Filename can be split across multiple lines with 📦 {size} at last line
     let message = '';
-    console.log(stream.title);
     let filename = stream.title
       ? stream.title
           .split('\n')
