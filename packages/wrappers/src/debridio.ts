@@ -155,9 +155,8 @@ export async function getDebridioStreams(
 
   streamsArray.forEach((result) => {
     if (result.status === 'fulfilled') {
-      const { addonStreams, addonErrors } = result.value;
-      addonStreams.push(...addonStreams);
-      addonErrors.push(...addonErrors);
+      addonStreams.push(...result.value.addonStreams);
+      addonErrors.push(...result.value.addonErrors);
     } else {
       addonErrors.push(result.reason.message);
     }
