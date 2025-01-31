@@ -1105,10 +1105,10 @@ export class AIOStreams {
       // Select cached streams by provider and addon priority
       const selectedCachedStream = cachedStreams.sort((a, b) => {
         const aProviderIndex = this.config.services.findIndex(
-          (service) => service.id === a.provider!.id
+          (service) => service.id === a.provider?.id
         );
         const bProviderIndex = this.config.services.findIndex(
-          (service) => service.id === b.provider!.id
+          (service) => service.id === b.provider?.id
         );
 
         if (aProviderIndex !== bProviderIndex) {
