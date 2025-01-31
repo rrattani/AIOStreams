@@ -94,6 +94,15 @@ export class BaseWrapper {
     return useProxy;
   }
 
+  private getLoggableUrl(url: string): string {
+    let urlObj = new URL(url);
+    return `${urlObj.protocol}//${urlObj.hostname}/${urlObj.pathname
+      .split('/')
+      .slice(1, -3)
+      .map((part) => (Settings.LOG_SENSITIVE_INFO ? part : '<redacted>'))
+      .join('/')}/${urlObj.pathname.split('/').slice(-3).join('/')}`;
+  }
+
   protected makeRequest(url: string): Promise<any> {
     const headers = new Headers();
     const userIp = this.userConfig.requestingIp;
@@ -103,12 +112,7 @@ export class BaseWrapper {
       headers.set('X-Real-IP', userIp);
     }
 
-    let urlObj = new URL(url);
-    let sanitisedUrl = `${urlObj.protocol}//${urlObj.hostname}/${urlObj.pathname
-      .split('/')
-      .slice(1, -3)
-      .map((part) => (Settings.LOG_SENSITIVE_INFO ? part : '<redacted>'))
-      .join('/')}/${urlObj.pathname.split('/').slice(-3).join('/')}`;
+    let sanitisedUrl = this.getLoggableUrl(url);
     let useProxy = this.shouldProxyRequest(url);
 
     console.log(
@@ -143,16 +147,19 @@ export class BaseWrapper {
     const cachedStreams = cache ? cache.get(requestCacheKey) : undefined;
     if (cachedStreams) {
       console.debug(
-        `|DBG| wrappers > base > ${this.addonName}: Returning cached streams for`
+        `|DBG| wrappers > base > ${this.addonName}: Returning cached streams for ${this.getLoggableUrl(url)}`
       );
       return cachedStreams;
     }
     try {
       const response = await this.makeRequest(url);
       if (!response.ok) {
-        throw new Error(
-          `${this.addonName} failed to respond with status ${response.status}`
-        );
+        const text = await response.text();
+        let error = `${response.status} - ${response.statusText}`;
+        try {
+          error += ` with response: ${JSON.stringify(JSON.parse(text))}`;
+        } catch {}
+        throw new Error(error);
       }
 
       const results = (await response.json()) as { streams: Stream[] };
@@ -170,7 +177,7 @@ export class BaseWrapper {
     } catch (error: any) {
       let message = error.message;
       if (error.name === 'TimeoutError') {
-        message = `The request to ${this.addonName} was aborted after ${this.indexerTimeout}ms`;
+        message = `The request to ${this.addonName} timed out after ${this.indexerTimeout}ms`;
       }
       return Promise.reject(new Error(message));
     }
