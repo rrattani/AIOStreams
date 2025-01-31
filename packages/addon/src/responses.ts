@@ -7,7 +7,7 @@ export const errorResponse = (
   externalUrl?: string
 ) => {
   return {
-    streams: [errorStream(errorMessage, origin, path, externalUrl)],
+    streams: [errorStream(errorMessage, 'Error', origin, path, externalUrl)],
   };
 };
 

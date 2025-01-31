@@ -63,6 +63,12 @@ app.use(express.json());
 // Built-in middleware for parsing URL-encoded data
 app.use(express.urlencoded({ extended: true }));
 
+// unhandled errors
+app.use((err: any, req: Request, res: Response, next: any) => {
+  console.error(`|ERR| server > ${err.message}`);
+  res.status(500).send('Internal server error');
+});
+
 app.use((req, res, next) => {
   res.append('Access-Control-Allow-Origin', '*');
   res.append('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE');
@@ -219,9 +225,22 @@ app.get('/:config/stream/:type/:id.json', (req, res: Response): void => {
       req.ip;
     configJson.instanceCache = cache;
     const aioStreams = new AIOStreams(configJson);
-    aioStreams.getStreams(streamRequest).then((streams) => {
-      res.json({ streams: streams });
-    });
+    aioStreams
+      .getStreams(streamRequest)
+      .then((streams) => {
+        res.json({ streams: streams });
+      })
+      .catch((error: any) => {
+        console.error(`|ERR| server > Internal addon error: ${error.message}`);
+        res.json(
+          errorResponse(
+            'An unexpected error occurred, please check the logs or create an issue on GitHub',
+            rootUrl(req),
+            undefined,
+            'https://github.com/Viren070/AIOStreams/issues/new?template=bug_report.yml'
+          )
+        );
+      });
   } catch (error: any) {
     console.error(`|ERR| server > Internal addon error: ${error.message}`);
     res.json(
