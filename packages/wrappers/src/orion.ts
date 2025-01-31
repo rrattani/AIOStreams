@@ -1,4 +1,9 @@
-import { AddonDetail, ErrorStream, StreamRequest } from '@aiostreams/types';
+import {
+  AddonDetail,
+  ErrorStream,
+  ParseResult,
+  StreamRequest,
+} from '@aiostreams/types';
 import { ParsedStream, Stream, Config } from '@aiostreams/types';
 import { BaseWrapper } from './base';
 import { addonDetails } from '@aiostreams/utils';
@@ -28,16 +33,14 @@ export class OrionStremioAddon extends BaseWrapper {
     );
   }
 
-  protected parseStream(stream: Stream): ParsedStream {
-    const parsedStream: ParsedStream = super.parseStream(stream);
-    // handle error streams and join all lines into a single string
-    const filename = stream.title
-      ? stream.title.includes('ERROR')
-        ? `Error: ${stream.title.split('\n')[1]} - ${stream.title.split('\n')[2]}`
-        : stream.title.split('\n')[0]
-      : stream.behaviorHints?.filename?.trim();
-    parsedStream.filename = filename;
-    return parsedStream;
+  protected parseStream(stream: Stream): ParseResult {
+    if (stream.title?.includes('ERROR')) {
+      return {
+        type: 'error',
+        result: stream.title,
+      };
+    }
+    return super.parseStream(stream);
   }
 }
 
@@ -110,8 +113,7 @@ export async function getOrionStreams(
       config,
       indexerTimeout
     );
-    const streams = await orion.getParsedStreams(streamRequest);
-    return { addonStreams: streams, addonErrors: [] };
+    return await orion.getParsedStreams(streamRequest);
   }
 
   // find all usable services
@@ -135,10 +137,7 @@ export async function getOrionStreams(
       config,
       indexerTimeout
     );
-    return {
-      addonStreams: await orion.getParsedStreams(streamRequest),
-      addonErrors: [],
-    };
+    return orion.getParsedStreams(streamRequest);
   }
 
   // otherwise, pass all the services to orion
@@ -160,8 +159,5 @@ export async function getOrionStreams(
     config,
     indexerTimeout
   );
-  return {
-    addonStreams: await orion.getParsedStreams(streamRequest),
-    addonErrors: [],
-  };
+  return orion.getParsedStreams(streamRequest);
 }

@@ -1,4 +1,4 @@
-import { AddonDetail, StreamRequest } from '@aiostreams/types';
+import { AddonDetail, ParseResult, StreamRequest } from '@aiostreams/types';
 import { ParsedStream, Stream, Config } from '@aiostreams/types';
 import { BaseWrapper } from './base';
 import { addonDetails } from '@aiostreams/utils';
@@ -24,19 +24,6 @@ export class Debridio extends BaseWrapper {
       userConfig,
       indexerTimeout || Settings.DEFAULT_DEBRIDIO_TIMEOUT
     );
-  }
-
-  protected parseStream(stream: Stream): ParsedStream {
-    const superParsedStream = super.parseStream(stream);
-
-    if (!superParsedStream.provider) {
-      superParsedStream.provider = {
-        id: 'easydebrid',
-        cached: false,
-      };
-    }
-
-    return superParsedStream;
   }
 }
 
@@ -84,10 +71,7 @@ export async function getDebridioStreams(
       config,
       indexerTimeout
     );
-    return {
-      addonStreams: await debridio.getParsedStreams(streamRequest),
-      addonErrors: [],
-    };
+    return debridio.getParsedStreams(streamRequest);
   }
 
   // find all usable and enabled services
@@ -140,10 +124,7 @@ export async function getDebridioStreams(
       indexerTimeout
     );
 
-    return {
-      addonStreams: await debridio.getParsedStreams(streamRequest),
-      addonErrors: [],
-    };
+    return debridio.getParsedStreams(streamRequest);
   }
 
   // if no prioritised service is provided, create a debridio instance for each service
@@ -174,7 +155,9 @@ export async function getDebridioStreams(
 
   streamsArray.forEach((result) => {
     if (result.status === 'fulfilled') {
-      addonStreams.push(...result.value);
+      const { addonStreams, addonErrors } = result.value;
+      addonStreams.push(...addonStreams);
+      addonErrors.push(...addonErrors);
     } else {
       addonErrors.push(result.reason.message);
     }

@@ -64,6 +64,8 @@ export function imposterFormat(stream: ParsedStream): {
   }
 
   description += `\n📄 ${stream.filename ? stream.filename : 'Unknown'}`;
-
+  if (stream.message) {
+    description += `\n📢${stream.message}`;
+  }
   return { name, description };
 }

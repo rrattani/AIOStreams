@@ -92,10 +92,7 @@ export async function getJackettioStreams(
       config,
       indexerTimeout
     );
-    return {
-      addonStreams: await jackettio.getParsedStreams(streamRequest),
-      addonErrors: [],
-    };
+    return jackettio.getParsedStreams(streamRequest);
   }
 
   // find all usable and enabled services
@@ -148,10 +145,7 @@ export async function getJackettioStreams(
       indexerTimeout
     );
 
-    return {
-      addonStreams: await jackettio.getParsedStreams(streamRequest),
-      addonErrors: [],
-    };
+    return jackettio.getParsedStreams(streamRequest);
   }
 
   // if no prioritised service is provided, create a jackettio instance for each service
@@ -180,7 +174,8 @@ export async function getJackettioStreams(
   const streamsArray = await Promise.allSettled(streamPromises);
   streamsArray.forEach((result) => {
     if (result.status === 'fulfilled') {
-      addonStreams.push(...result.value);
+      addonStreams.push(...result.value.addonStreams);
+      addonErrors.push(...result.value.addonErrors);
     } else {
       addonErrors.push(result.reason.message);
     }

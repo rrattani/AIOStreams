@@ -17,11 +17,11 @@ export function torrentioFormat(stream: ParsedStream): {
     const serviceShortName =
       serviceDetails.find((service) => service.id === stream.provider!.id)
         ?.shortName || stream.provider.id;
-    name += `[${serviceShortName}${cacheStatus}] `;
+    name += `[${serviceShortName}${cacheStatus}]\n`;
   }
 
   if (stream.torrent?.infoHash) {
-    name += '[P2P] ';
+    name += '[P2P]\n';
   }
 
   name += `${stream.addon.name} ${stream.personal ? '(Your Media) ' : ''}${stream.resolution} `;
@@ -29,8 +29,15 @@ export function torrentioFormat(stream: ParsedStream): {
   if (stream.visualTags.length > 0) {
     name += stream.visualTags.join(' | ');
   }
+  let description = '';
 
-  let description = stream.filename ? stream.filename : 'Unknown Name';
+  if (stream.message) {
+    description += `\n${stream.message}`;
+  }
+
+  if (stream.filename) {
+    description += `\n${stream.filename}`;
+  }
   if (
     stream.size ||
     stream.torrent?.seeders ||

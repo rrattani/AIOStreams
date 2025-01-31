@@ -1,4 +1,4 @@
-import { ParsedNameData, StreamRequest } from '@aiostreams/types';
+import { ParsedNameData, ParseResult, StreamRequest } from '@aiostreams/types';
 import { parseFilename } from '@aiostreams/parser';
 import { ParsedStream, Stream, Config } from '@aiostreams/types';
 import { BaseWrapper } from './base';
@@ -27,8 +27,12 @@ export class EasynewsPlus extends BaseWrapper {
     );
   }
 
-  protected parseStream(stream: Stream): ParsedStream {
-    return { ...super.parseStream(stream), type: 'usenet' };
+  protected parseStream(stream: Stream): ParseResult {
+    const parseResult = super.parseStream(stream);
+    if (parseResult.type !== 'error') {
+      parseResult.result.type = 'usenet';
+    }
+    return parseResult;
   }
 }
 
@@ -83,9 +87,5 @@ export async function getEasynewsPlusStreams(
       : undefined
   );
 
-  const streams = await easynews.getParsedStreams(streamRequest);
-  return {
-    addonStreams: streams,
-    addonErrors: [],
-  };
+  return await easynews.getParsedStreams(streamRequest);
 }

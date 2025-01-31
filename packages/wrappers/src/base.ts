@@ -4,6 +4,8 @@ import {
   StreamRequest,
   ParsedNameData,
   Config,
+  ErrorStream,
+  ParseResult,
 } from '@aiostreams/types';
 import { parseFilename } from '@aiostreams/parser';
 import { getTextHash, serviceDetails, Settings } from '@aiostreams/utils';
@@ -39,14 +41,27 @@ export class BaseWrapper {
       : `${manifestUrl}/manifest.json`;
   }
 
-  public async getParsedStreams(
-    streamRequest: StreamRequest
-  ): Promise<ParsedStream[]> {
+  public async getParsedStreams(streamRequest: StreamRequest): Promise<{
+    addonStreams: ParsedStream[];
+    addonErrors: string[];
+  }> {
     const streams: Stream[] = await this.getStreams(streamRequest);
-    const parsedStreams: ParsedStream[] = streams
-      .map((stream) => this.parseStream(stream))
+    const errors: string[] = [];
+    const finalStreams = streams
+      .map((stream) => {
+        const { type, result } = this.parseStream(stream);
+        if (type === 'error') {
+          errors.push(result);
+          return undefined;
+        } else if (type === 'stream') {
+          return result;
+        } else {
+          return undefined;
+        }
+      })
       .filter((parsedStream) => parsedStream !== undefined);
-    return parsedStreams;
+
+    return { addonStreams: finalStreams, addonErrors: errors };
   }
 
   private getStreamUrl(streamRequest: StreamRequest) {
@@ -195,56 +210,73 @@ export class BaseWrapper {
     duration?: number,
     personal?: boolean,
     infoHash?: string
-  ): ParsedStream {
+  ): ParseResult {
     return {
-      ...parsedInfo,
-      addon: { name: this.addonName, id: this.addonId },
-      filename: filename,
-      size: size,
-      url: stream.url,
-      externalUrl: stream.externalUrl,
-      _infoHash: infoHash,
-      torrent: {
-        infoHash: stream.infoHash,
-        fileIdx: stream.fileIdx,
-        sources: stream.sources,
-        seeders: seeders,
-      },
-      provider: provider,
-      usenet: {
-        age: usenetAge,
-      },
-      indexers: indexer,
-      duration: duration,
-      personal: personal,
-      type: stream.infoHash
-        ? 'p2p'
-        : usenetAge
-          ? 'usenet'
-          : provider
-            ? 'debrid'
-            : stream.url?.endsWith('.m3u8')
-              ? 'live'
-              : 'unknown',
-      stream: {
-        subtitles: stream.subtitles,
-        behaviorHints: {
-          countryWhitelist: stream.behaviorHints?.countryWhitelist,
-          notWebReady: stream.behaviorHints?.notWebReady,
-          proxyHeaders:
-            stream.behaviorHints?.proxyHeaders?.request ||
-            stream.behaviorHints?.proxyHeaders?.response
-              ? {
-                  request: stream.behaviorHints?.proxyHeaders?.request,
-                  response: stream.behaviorHints?.proxyHeaders?.response,
-                }
-              : undefined,
-          videoHash: stream.behaviorHints?.videoHash,
+      type: 'stream',
+      result: {
+        ...parsedInfo,
+        addon: { name: this.addonName, id: this.addonId },
+        filename: filename,
+        size: size,
+        url: stream.url,
+        externalUrl: stream.externalUrl,
+        _infoHash: infoHash,
+        torrent: {
+          infoHash: stream.infoHash,
+          fileIdx: stream.fileIdx,
+          sources: stream.sources,
+          seeders: seeders,
+        },
+        provider: provider,
+        usenet: {
+          age: usenetAge,
+        },
+        indexers: indexer,
+        duration: duration,
+        personal: personal,
+        type: stream.infoHash
+          ? 'p2p'
+          : usenetAge
+            ? 'usenet'
+            : provider
+              ? 'debrid'
+              : stream.url?.endsWith('.m3u8')
+                ? 'live'
+                : 'unknown',
+        stream: {
+          subtitles: stream.subtitles,
+          behaviorHints: {
+            countryWhitelist: stream.behaviorHints?.countryWhitelist,
+            notWebReady: stream.behaviorHints?.notWebReady,
+            proxyHeaders:
+              stream.behaviorHints?.proxyHeaders?.request ||
+              stream.behaviorHints?.proxyHeaders?.response
+                ? {
+                    request: stream.behaviorHints?.proxyHeaders?.request,
+                    response: stream.behaviorHints?.proxyHeaders?.response,
+                  }
+                : undefined,
+            videoHash: stream.behaviorHints?.videoHash,
+          },
         },
       },
     };
   }
-  protected parseStream(stream: { [key: string]: any }): ParsedStream {
+  protected parseStream(stream: { [key: string]: any }): ParseResult {
+    // see if the stream is an error
+    const errorRegex = /invalid.+(account|apikey|token)/i;
+    if (
+      errorRegex.test(stream.title || '') ||
+      errorRegex.test(stream.description || '')
+    ) {
+      console.log(
+        `|ERR| wrappers > base > ${this.addonName}: ${stream.title || stream.description} was detected as an error`
+      );
+      return {
+        type: 'error',
+        result: stream.title || stream.description,
+      };
+    }
     // attempt to look for filename in behaviorHints.filename
     let filename =
       stream?.behaviorHints?.filename || stream.torrentTitle || stream.filename;

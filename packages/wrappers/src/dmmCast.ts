@@ -6,6 +6,7 @@ import {
   AddonDetail,
   ParsedNameData,
   StreamRequest,
+  ParseResult,
 } from '@aiostreams/types';
 import { BaseWrapper } from './base';
 import { addonDetails, Settings } from '@aiostreams/utils';
@@ -28,32 +29,41 @@ export class DMMCast extends BaseWrapper {
     );
   }
 
-  protected parseStream(stream: Stream): ParsedStream {
+  protected parseStream(stream: Stream): ParseResult {
     // the streams for DMM cast can be one of the following
     // 1:Cast - Cast a file inside a torrent
     // 2:Stream - Stream the latest link you casted
     // DMM Other - Filename can be split across multiple lines with 📦 {size} at last line
     // DMM Yours - Filename can be split across multiple lines with 📦 {size} at last line
-
-    const filename = stream.title
+    let message = '';
+    console.log(stream.title);
+    let filename = stream.title
       ? stream.title
           .split('\n')
+          .map((line) => line.replace(/-$/, ''))
           .filter((line) => !line.includes('📦'))
           .join('')
       : stream.behaviorHints?.filename?.trim();
+    if (!stream.title?.includes('📦')) {
+      filename = undefined;
+      message = stream.title || '';
+    }
 
     const parsedFilename: ParsedNameData = parseFilename(filename || '');
     const sizeInBytes = stream.title?.split('\n').pop()?.includes('📦')
       ? this.extractSizeInBytes(stream.title.split('\n').pop()!, 1024)
       : 0;
 
-    const parsedStream: ParsedStream = this.createParsedResult(
+    const parseResult: ParseResult = this.createParsedResult(
       parsedFilename,
       stream,
       filename,
       sizeInBytes
     );
-    return parsedStream;
+    if (parseResult.type === 'stream') {
+      parseResult.result.message = message;
+    }
+    return parseResult;
   }
 }
 
@@ -88,8 +98,5 @@ export async function getDMMCastStreams(
       ? parseInt(dmmCastOptions.indexerTimeout)
       : undefined
   );
-  return {
-    addonStreams: await dmmCast.getParsedStreams(streamRequest),
-    addonErrors: [],
-  };
+  return await dmmCast.getParsedStreams(streamRequest);
 }

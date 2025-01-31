@@ -1,4 +1,4 @@
-import { AddonDetail, StreamRequest } from '@aiostreams/types';
+import { AddonDetail, ParseResult, StreamRequest } from '@aiostreams/types';
 import { ParsedStream, Stream, Config } from '@aiostreams/types';
 import { BaseWrapper } from './base';
 import { addonDetails, Settings } from '@aiostreams/utils';
@@ -25,17 +25,14 @@ export class MediaFusion extends BaseWrapper {
     );
   }
 
-  protected parseStream(stream: Stream): ParsedStream {
-    const parsedStream: ParsedStream = super.parseStream(stream);
-    // handle content warning streams and join all lines into a single string
-    if (
-      parsedStream.filename &&
-      stream.description &&
-      parsedStream.filename.includes('Content Warning')
-    ) {
-      parsedStream.filename = stream.description.split('\n').join(' ');
+  protected parseStream(stream: Stream): ParseResult {
+    if (stream.description?.includes('Content Warning')) {
+      return {
+        type: 'error',
+        result: stream.description,
+      };
     }
-    return parsedStream;
+    return super.parseStream(stream);
   }
 }
 
@@ -73,10 +70,7 @@ export async function getMediafusionStreams(
       config,
       indexerTimeout
     );
-    return {
-      addonStreams: await mediafusion.getParsedStreams(streamRequest),
-      addonErrors: [],
-    };
+    return mediafusion.getParsedStreams(streamRequest);
   }
 
   // find all usable and enabled services
@@ -100,10 +94,7 @@ export async function getMediafusionStreams(
       config,
       indexerTimeout
     );
-    return {
-      addonStreams: await mediafusion.getParsedStreams(streamRequest),
-      addonErrors: [],
-    };
+    return await mediafusion.getParsedStreams(streamRequest);
   }
 
   // otherwise, depending on the configuration, create multiple instances of mediafusion or use a single instance with the prioritised service
@@ -149,10 +140,7 @@ export async function getMediafusionStreams(
       indexerTimeout
     );
 
-    return {
-      addonStreams: await mediafusion.getParsedStreams(streamRequest),
-      addonErrors: [],
-    };
+    return await mediafusion.getParsedStreams(streamRequest);
   }
 
   // if no prioritised service is provided, create a mediafusion instance for each service
@@ -183,7 +171,8 @@ export async function getMediafusionStreams(
   const results = await Promise.allSettled(promises);
   results.forEach((result) => {
     if (result.status === 'fulfilled') {
-      addonStreams.push(...result.value);
+      addonStreams.push(...result.value.addonStreams);
+      addonErrors.push(...result.value.addonErrors);
     } else {
       addonErrors.push(result.reason.message);
     }

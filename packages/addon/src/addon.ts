@@ -94,7 +94,7 @@ export class AIOStreams {
       await this.getParsedStreams(streamRequest);
 
     console.log(
-      `|INF| addon > getStreams: Got ${parsedStreams.length} total parsed streams in ${getTimeTakenSincePoint(startTime)}`
+      `|INF| addon > getStreams: Got ${parsedStreams.length} parsed streams and ${errorStreams.length} error streams in ${getTimeTakenSincePoint(startTime)}`
     );
     const filterStartTime = new Date().getTime();
 
@@ -868,6 +868,14 @@ export class AIOStreams {
   ): Promise<{ parsedStreams: ParsedStream[]; errorStreams: ErrorStream[] }> {
     const parsedStreams: ParsedStream[] = [];
     const errorStreams: ErrorStream[] = [];
+    const formatError = (error: string) =>
+      error
+        .replace(/- |: /g, '\n')
+        .split('\n')
+        .map((line: string) => line.trim())
+        .join('\n')
+        .trim();
+
     const addonPromises = this.config.addons.map(async (addon) => {
       const addonName =
         addon.options.name ||
@@ -885,25 +893,19 @@ export class AIOStreams {
         parsedStreams.push(...addonStreams);
         errorStreams.push(
           ...[...new Set(addonErrors)].map((error) => ({
-            error,
+            error: formatError(error),
             addon: { id: addonId, name: addonName },
           }))
         );
         console.log(
-          `|INF| addon > getParsedStreams: Got ${parsedStreams.length} streams from addon ${addonName} in ${getTimeTakenSincePoint(startTime)}`
+          `|INF| addon > getParsedStreams: Got ${addonStreams.length} streams ${addonErrors.length > 0 ? `and ${addonErrors.length} errors ` : ''}from addon ${addonName} in ${getTimeTakenSincePoint(startTime)}`
         );
       } catch (error: any) {
         console.error(
           `|ERR| addon > getParsedStreams: Failed to get streams from ${addonName}: ${error}`
         );
         errorStreams.push({
-          error: `${error.message
-            .replace('-', '\n')
-            .replace(':', '\n')
-            .split('\n')
-            .map((line: string) => line.trim())
-            .join('\n')
-            .trim()}`,
+          error: formatError(error.message),
           addon: {
             id: addonId,
             name: addonName,
@@ -1023,10 +1025,7 @@ export class AIOStreams {
             ? parseInt(addon.options.indexerTimeout)
             : Settings.DEFAULT_GDRIVE_TIMEOUT
         );
-        return {
-          addonStreams: await wrapper.getParsedStreams(streamRequest),
-          addonErrors: [],
-        };
+        return await wrapper.getParsedStreams(streamRequest);
       }
       default: {
         if (!addon.options.url) {
@@ -1043,10 +1042,7 @@ export class AIOStreams {
             ? parseInt(addon.options.indexerTimeout)
             : undefined
         );
-        return {
-          addonStreams: await wrapper.getParsedStreams(streamRequest),
-          addonErrors: [],
-        };
+        return wrapper.getParsedStreams(streamRequest);
       }
     }
   }

@@ -15,6 +15,7 @@ export interface ParsedStream extends ParsedNameData {
     name: string;
   };
   filename?: string;
+  message?: string;
   size?: number;
   provider?: {
     id: string;
@@ -57,6 +58,18 @@ export interface ErrorStream {
     name: string;
   };
 }
+
+interface ErrorParseResult {
+  type: 'error';
+  result: string;
+}
+
+interface SuccessParseResult {
+  type: 'stream';
+  result: ParsedStream;
+}
+
+export type ParseResult = SuccessParseResult | ErrorParseResult;
 
 export interface CollectedParsedStreams {
   [key: string]: ParsedStream[];

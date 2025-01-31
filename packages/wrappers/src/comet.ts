@@ -77,10 +77,7 @@ export async function getCometStreams(
       config,
       indexerTimeout
     );
-    return {
-      addonStreams: await comet.getParsedStreams(streamRequest),
-      addonErrors: [],
-    };
+    return await comet.getParsedStreams(streamRequest);
   }
 
   // find all usable and enabled services
@@ -134,10 +131,7 @@ export async function getCometStreams(
       indexerTimeout
     );
 
-    return {
-      addonStreams: await comet.getParsedStreams(streamRequest),
-      addonErrors: [],
-    };
+    return await comet.getParsedStreams(streamRequest);
   }
 
   // if no prioritised service is provided, create a comet instance for each service
@@ -165,7 +159,9 @@ export async function getCometStreams(
   const results = await Promise.allSettled(streamPromises);
   results.forEach((result) => {
     if (result.status === 'fulfilled') {
-      parsedStreams.push(...result.value);
+      const streams = result.value;
+      parsedStreams.push(...streams.addonStreams);
+      errorMessages.push(...streams.addonErrors);
     } else {
       errorMessages.push(result.reason.message);
     }
