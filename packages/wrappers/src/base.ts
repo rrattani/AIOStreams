@@ -394,30 +394,34 @@ export class BaseWrapper {
   }
 
   protected extractResolution(string: string): string | undefined {
-    const resolutionPattern = /(?:\d{3,4}p|SD|HD|FHD|UHD|4K|8K)/i;
+    const resolutionPattern = /(?:\d{3,4}(?:p)?|SD|HD|FHD|UHD|4K|8K)/gi;
     const match = string.match(resolutionPattern);
 
     if (!match) return undefined;
-
-    const resolution = match[0].toUpperCase();
-    switch (resolution) {
-      case '480P':
-      case 'SD':
-        return '480p';
-      case '720P':
-      case 'HD':
-        return '720p';
-      case '1080P':
-      case '960P':
-      case 'FHD':
-        return '1080p';
-      case 'UHD':
-      case '4K':
-      case '2160P':
-        return '2160p';
-      default:
-        return resolution;
-    }
+    return (
+      match
+        .map((resolution) => {
+          switch (resolution) {
+            case '480':
+            case 'SD':
+              return '480p';
+            case '720':
+            case 'HD':
+              return '720p';
+            case '1080':
+            case '960':
+            case 'FHD':
+              return '1080p';
+            case 'UHD':
+            case '4K':
+            case '2160':
+              return '2160p';
+            default:
+              return 'Unknown';
+          }
+        })
+        .find((res) => res !== 'Unknown') || 'Unknown'
+    );
   }
 
   protected extractSizeInBytes(string: string, k: number): number {
